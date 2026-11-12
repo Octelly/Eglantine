@@ -208,7 +208,7 @@ jobs:
           ccache --zero-stats
           cmake --build build/release --target yuzu yuzu-cmd --parallel
           ccache --show-stats -vv
-          find ccache-debug -name '*.log' 2>/dev/null | head -1 | xargs -r sed -n '1,40p'
+          { find ccache-debug -name '*.log' -print -quit 2>/dev/null | xargs -r sed -n '1,40p'; } || true
 
       # Plain tar.gz with the two programs. GitHub artifacts drop the executable bit, so a tar is
       # what keeps it. This one is not self-contained: it needs Qt 6 and the usual libraries
