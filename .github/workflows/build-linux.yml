@@ -190,11 +190,25 @@ jobs:
           fi
           cmake -S . -B build/release -G Ninja "${flags[@]}"
 
+      - name: ccache diagnostics
+        shell: bash
+        run: |
+          ccache --version | head -1
+          ccache -p | grep -E '^(cache_dir|compiler_check|base_dir|hash_dir|sloppiness|max_size|umask)' || true
+          if [ '${{ matrix.pgo }}' = 'true' ]; then clang-$PGO_LLVM_VERSION --version; fi
+          echo "profile: $(md5sum eglantine.profdata || true)"
+
       - name: Build
         shell: bash
         run: |
+          if [ '${{ matrix.pgo }}' = 'true' ]; then
+            export CCACHE_DEBUG=1
+            export CCACHE_DEBUGDIR="$PWD/ccache-debug"
+          fi
+          ccache --zero-stats
           cmake --build build/release --target yuzu yuzu-cmd --parallel
-          ccache --show-stats
+          ccache --show-stats -vv
+          find ccache-debug -name '*.log' 2>/dev/null | head -1 | xargs -r sed -n '1,40p'
 
       # Plain tar.gz with the two programs. GitHub artifacts drop the executable bit, so a tar is
       # what keeps it. This one is not self-contained: it needs Qt 6 and the usual libraries
