@@ -7,6 +7,12 @@
 , llvmPackages_23
 , src
 , version
+, # The identity composed by flake.nix (see there): the commit date and the sha.
+  display ? ""
+, # The commit that identity describes. The Nix sandbox has no .git and the
+  # GIT-* files are not written into the tree, so this is where the commit comes
+  # from; CMakeModules/GenerateSCMRev.cmake prefers it over asking git.
+  commit ? ""
 , pgo ? false
 , # CPU tuning, off by default, only here for tinkerers
   march ? null
@@ -325,12 +331,22 @@ buildEdenEmulator (
     ];
 
     # opt-in build-identity, see above
-    env = lib.optionalAttrs nixBuildIdentity {
-      # The identity in the title bar and the About dialog comes from GIT-DISPLAY
-      # (branch, commit date, sha, PGO), so the only thing left to say is which
-      # packaging layer produced this binary.
-      EGLANTINE_FLAVOUR = "nix";
-    };
+    env =
+      lib.optionalAttrs nixBuildIdentity {
+        # The identity itself is composed by flake.nix; the only thing left for
+        # the binary to say is which packaging layer produced it.
+        EGLANTINE_FLAVOUR = "nix";
+      }
+      // lib.optionalAttrs (display != "") {
+        # Read by src/common/CMakeLists.txt. A GIT-DISPLAY file in the tree would
+        # make the source differ from a plain flake fetch and cost the cache hit.
+        DISPLAYVERSION = display;
+      }
+      // lib.optionalAttrs (commit != "") {
+        # Ditto for the commit: no .git in the sandbox, and no GIT-* files either.
+        EGLANTINE_COMMIT = commit;
+        EGLANTINE_REFSPEC = "nix";
+      };
 
     meta = {
       description = "Experimental Nintendo Switch 2 emulator";

@@ -212,18 +212,11 @@ jobs:
     uses: ./.github/workflows/build-nix.yml
     with:
       sha: ${{ needs.prepare.outputs.sha }}
-      display: ${{ needs.prepare.outputs.display }}
-      display_pgo: ${{ needs.prepare.outputs.display_pgo }}
-      display_store: ${{ needs.prepare.outputs.display_store }}
-      display_pgo_store: ${{ needs.prepare.outputs.display_pgo_store }}
       linux: ${{ github.event_name != 'workflow_dispatch' || inputs.build_linux }}
       macos: ${{ github.event_name != 'workflow_dispatch' || inputs.build_macos }}
-      # Same identity inputs the linux job gets, so the Nix binary reports the
-      # same version string as the release it sits next to.
-      refspec: ${{ needs.prepare.outputs.refspec }}
-      tag: ${{ needs.prepare.outputs.tag }}
-      release: ${{ needs.prepare.outputs.kind == 'stable' || needs.prepare.outputs.kind == 'rc' }}
-      nightly: ${{ needs.prepare.outputs.nightly == 'true' }}
+      # No display or SCM values: flake.nix composes the identity from the commit
+      # alone (see there), which is what lets a plain `nix build github:owner/repo/ref`
+      # evaluate the same derivation and substitute it from the binary cache.
       pgo: ${{ inputs.pgo || (needs.prepare.outputs.kind == 'branch' && 'none' || 'both') }}
       save_cache: ${{ inputs.save_cache || (needs.prepare.outputs.kind == 'daily') }}
     secrets:

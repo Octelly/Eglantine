@@ -25,6 +25,11 @@
 #
 # --store prints the same identity restricted to [A-Za-z0-9+._?=-], which is
 # what a Nix store path name (and therefore a derivation version) accepts.
+#
+# --sha-date prints only "<commit time> (<sha7>)". That is the form flake.nix
+# composes for itself, because a flake ref carries the commit and its date but
+# not the branch or the owner; build-nix.yml compares the two so they cannot
+# drift apart.
 set -euo pipefail
 
 canonical_owner=Eglantine-Community
@@ -55,7 +60,9 @@ branch=${GITHUB_REF_NAME:-}
 sha=${GITHUB_SHA:-}
 
 usage() {
-  sed -n '2,29p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  # The header comment is the usage text; print it up to the first code line so
+  # that editing the text cannot desynchronise it.
+  awk 'NR > 1 && /^set -euo pipefail$/ { exit } NR > 1 { sub(/^# ?/, ""); print }' "${BASH_SOURCE[0]}"
 }
 
 while (($#)); do
@@ -70,6 +77,7 @@ while (($#)); do
     --repo-root) root=${2:?--repo-root needs a value}; shift 2 ;;
     --pgo) pgo=true; shift ;;
     --store) render=store; shift ;;
+    --sha-date) render=sha-date; shift ;;
     -h | --help) usage; exit 0 ;;
     *) echo "display-version.sh: unknown argument: $1" >&2; exit 2 ;;
   esac
@@ -104,6 +112,11 @@ fi
 
 short=${sha:0:$hash_len}
 [ -n "$short" ] || short=$unknown_hash
+
+if [ "$render" = sha-date ]; then
+  printf '%s (%s)\n' "$commit_time" "$short"
+  exit 0
+fi
 
 if [ -n "$release" ]; then
   display="${prefix}${branch} - ${release}"

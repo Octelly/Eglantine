@@ -16,14 +16,28 @@
       ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
 
-      # The build identity CI hands the derivation (composed by tools/ci/prepare.sh
-      # and written by build-nix.yml). A checkout without one is a local build and
-      # keeps the release version from VERSION.
-      version = nixpkgs.lib.removeSuffix "\n" (
-        builtins.readFile (
-          if builtins.pathExists ./GIT-DISPLAY-STORE then ./GIT-DISPLAY-STORE else ./VERSION
-        )
-      );
+      # The build identity, composed here from the flake's own metadata.
+      #
+      # tools/ci/display-version.sh composes it for the tarball legs and has what
+      # a flake ref cannot carry: the branch, the owner and the tag. A ref carries
+      # the commit and its date, so this form is "<commit time> (<sha7>)" -- the
+      # script prints exactly that under --sha-date, and build-nix.yml fails the
+      # leg if the two ever disagree.
+      #
+      # It must not be read from a file. A file written into the tree makes the
+      # checkout dirty and the Nix source differ from what a plain
+      # `nix build github:owner/repo/ref` sees, so the two evaluate different
+      # derivations and the binary cache can never serve the second -- which is
+      # the point of building here at all. Nothing reads the clock either: the
+      # commit date is stable, so a rebuilt commit still substitutes.
+      stamp = self.lastModifiedDate or "";
+      shortRev = self.dirtyShortRev or self.shortRev or "";
+      identity =
+        if builtins.stringLength stamp >= 12 && shortRev != "" then
+          "${builtins.substring 0 4 stamp}-${builtins.substring 4 2 stamp}-${builtins.substring 6 2 stamp}_${builtins.substring 8 2 stamp}-${builtins.substring 10 2 stamp} (${shortRev})"
+        else
+          # No git metadata at all (a source tarball): keep release versioning.
+          "v${nixpkgs.lib.removeSuffix "\n" (builtins.readFile ./VERSION)}";
 
       # The manifest readers and buildEdenEmulator for each system.
       emulatorTools = forAllSystems (
@@ -38,10 +52,18 @@
         system: extra:
         let
           pkgs = nixpkgs.legacyPackages.${system};
+          pgo = extra.pgo or false;
+          display = identity + nixpkgs.lib.optionalString pgo " (PGO)";
+          # A store path name takes [A-Za-z0-9+._?=-] only; the " (PGO)" marker
+          # becomes the "-pgo" suffix the rest of the tree already uses.
+          version =
+            nixpkgs.lib.replaceStrings [ " " "(" ")" ] [ "-" "" "" ] identity
+            + nixpkgs.lib.optionalString pgo "-pgo";
         in
         pkgs.callPackage ./nix/package.nix (
           {
-            inherit version;
+            inherit display version;
+            commit = self.rev or "";
             src = ./.;
             buildEdenEmulator = emulatorTools.${system}.buildEdenEmulator;
           }
@@ -49,6 +71,9 @@
         );
     in
     {
+      # The composed identity, for CI to check against tools/ci/display-version.sh.
+      inherit identity;
+
       packages = forAllSystems (system: {
         eglantine = mkEglantine system { };
         eglantine-pgo = mkEglantine system { pgo = true; };

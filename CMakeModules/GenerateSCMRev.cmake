@@ -7,6 +7,17 @@
 # generate git/build information
 include(GetSCMRev)
 
+# A build with no git metadata of its own -- the Nix package, whose sandbox has no
+# .git -- states its commit here. Writing GIT-* files into the tree instead would
+# make the source differ from a plain `nix build github:owner/repo/ref`, and the
+# binary cache could then never serve that fetch. See nix/package.nix.
+if (DEFINED ENV{EGLANTINE_COMMIT} AND NOT "$ENV{EGLANTINE_COMMIT}" STREQUAL "")
+    set(GIT_COMMIT "$ENV{EGLANTINE_COMMIT}")
+    set(GIT_REFSPEC "$ENV{EGLANTINE_REFSPEC}")
+    set(GIT_TAG "$ENV{EGLANTINE_REFSPEC}")
+    message(STATUS "[GenerateSCMRev] commit and refspec from EGLANTINE_* environment")
+endif()
+
 function(get_timestamp _var)
     string(TIMESTAMP timestamp UTC)
     set(${_var} "${timestamp}" PARENT_SCOPE)

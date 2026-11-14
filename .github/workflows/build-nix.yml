@@ -6,26 +6,10 @@ on:
       sha:
         type: string
         required: true
-      # The identity every leg shows. Composed once in prepare; never here. Two
-      # variants because whether a matrix row is PGO is decided per leg, and two
-      # store-safe renderings because a Nix store path name cannot carry slashes
-      # or parentheses and the flake uses that form as the derivation version.
-      display:
-        description: Human-facing build identity (plain variant)
-        type: string
-        default: ""
-      display_pgo:
-        description: Human-facing build identity (PGO variant)
-        type: string
-        default: ""
-      display_store:
-        description: Store-path-safe form of display
-        type: string
-        default: ""
-      display_pgo_store:
-        description: Store-path-safe form of display_pgo
-        type: string
-        default: ""
+      # No identity inputs: this leg's display string and derivation version are
+      # composed by flake.nix from the commit itself (see there), so that a plain
+      # `nix build github:owner/repo/ref` evaluates the same derivation CI built
+      # and can be substituted from the binary cache.
       pgo:
         description: none, both or only
         type: string
@@ -38,26 +22,6 @@ on:
         description: Build aarch64-darwin
         type: boolean
         default: true
-      # The four values .github/actions/setup-build writes as GIT-* files. Nix
-      # only sees tracked files in a git checkout, so the build job writes and
-      # stages them itself; without them GetSCMRev has no .git to ask and the
-      # binary reports its no-git fallback.
-      refspec:
-        description: Value for GIT-REFSPEC (branch or daily build label)
-        type: string
-        default: ""
-      tag:
-        description: Value for GIT-TAG
-        type: string
-        default: ""
-      release:
-        description: Write GIT-RELEASE, which makes this a release build
-        type: boolean
-        default: false
-      nightly:
-        description: Build the eglantine-nightly* outputs
-        type: boolean
-        default: false
       # The same opt-in the other platforms get. Restoring is free; saving writes a
       # fresh entry for every commit and the repository shares one 10 GB pool, so a
       # leg only saves on refs/heads/nx2 and on daily builds, unless a dispatch asks.
@@ -107,40 +71,13 @@ jobs:
           ref: ${{ inputs.sha }}
           persist-credentials: false
 
-      # Same files .github/actions/setup-build writes for every other platform.
-      # GetSCMRev prefers them over git; the Nix build has no .git, so without
-      # them the binary falls back to the GIT-NOTFOUND values (1.0.0/stable).
-      # `git add -f` because Nix only copies tracked files out of a git tree.
-      - name: Write SCM files
-        shell: bash
-        env:
-          SCM_SHA: ${{ inputs.sha }}
-          SCM_REFSPEC: ${{ inputs.refspec }}
-          SCM_TAG: ${{ inputs.tag }}
-          SCM_RELEASE: ${{ inputs.release }}
-          SCM_NIGHTLY: ${{ inputs.nightly }}
-          SCM_DISPLAY: ${{ matrix.pgo && inputs.display_pgo || inputs.display }}
-          SCM_DISPLAY_STORE: ${{ matrix.pgo && inputs.display_pgo_store || inputs.display_store }}
-        run: |
-          set -uo pipefail
-          printf '%s\n' "$SCM_SHA" > GIT-COMMIT
-          if [ -n "$SCM_REFSPEC" ]; then printf '%s\n' "$SCM_REFSPEC" > GIT-REFSPEC; fi
-          if [ -n "$SCM_TAG" ]; then
-            printf '%s\n' "$SCM_TAG" > GIT-TAG
-            if [ "$SCM_RELEASE" = "true" ]; then printf '%s\n' "$SCM_TAG" > GIT-RELEASE; fi
-          fi
-          # CMakeLists.txt turns NIGHTLY_BUILD on when this file exists, so a
-          # nightly is a tree property rather than a second package output.
-          if [ "$SCM_NIGHTLY" = "true" ]; then printf 'nightly\n' > GIT-NIGHTLY; fi
-          # The display identity rides in the tree like the GIT-* files: CMake
-          # reads the human form for the title and the About dialog, the flake
-          # reads the store-safe form as its version.
-          if [ -n "$SCM_DISPLAY" ]; then printf '%s\n' "$SCM_DISPLAY" > GIT-DISPLAY; fi
-          if [ -n "$SCM_DISPLAY_STORE" ]; then printf '%s\n' "$SCM_DISPLAY_STORE" > GIT-DISPLAY-STORE; fi
-          for f in GIT-COMMIT GIT-REFSPEC GIT-TAG GIT-RELEASE GIT-NIGHTLY GIT-DISPLAY GIT-DISPLAY-STORE; do
-            [ -f "$f" ] && git add -f "$f"
-          done
-          head -v GIT-COMMIT GIT-REFSPEC GIT-TAG GIT-RELEASE GIT-NIGHTLY GIT-DISPLAY GIT-DISPLAY-STORE 2> /dev/null || true
+      # Nothing is written into the tree for this leg. A GIT-* file would make the
+      # checkout dirty and the Nix source differ from what a plain
+      # `nix build github:owner/repo/ref` sees, so the two would evaluate
+      # different derivations and the binary cache could never serve the second --
+      # which is the point of building here. flake.nix composes the identity from
+      # self.rev and self.lastModifiedDate instead, and nix/package.nix hands it to
+      # CMake as environment, where it does not touch the source.
 
       - name: Install Nix
         uses: cachix/install-nix-action@v31
@@ -154,6 +91,24 @@ jobs:
             accept-flake-config = false
             # Compiler-object cache, read and written by the build users.
             extra-sandbox-paths = /nix/var/cache/ccache
+
+      # One string, two implementations: the shell composer the tarball legs use
+      # and the Nix expression this leg builds with. They cannot be merged (a flake
+      # cannot execute a script while it evaluates), so they are compared instead.
+      - name: Identity matches the flake
+        shell: bash
+        env:
+          BUILD_SHA: ${{ inputs.sha }}
+        run: |
+          set -uo pipefail
+          from_script=$(tools/ci/display-version.sh --sha-date --sha "$BUILD_SHA")
+          from_flake=$(nix eval --raw .#identity)
+          echo "display-version.sh: $from_script"
+          echo "flake:              $from_flake"
+          if [ "$from_script" != "$from_flake" ]; then
+            echo "::error::flake.nix and tools/ci/display-version.sh disagree on the identity"
+            exit 1
+          fi
 
       - name: Prepare ccache directory
         run: |
