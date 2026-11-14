@@ -16,28 +16,16 @@
       ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
 
-      # The build identity, composed here from the flake's own metadata.
-      #
-      # tools/ci/display-version.sh composes it for the tarball legs and has what
-      # a flake ref cannot carry: the branch, the owner and the tag. A ref carries
-      # the commit and its date, so this form is "<commit time> (<sha7>)" -- the
-      # script prints exactly that under --sha-date, and build-nix.yml fails the
-      # leg if the two ever disagree.
-      #
-      # It must not be read from a file. A file written into the tree makes the
-      # checkout dirty and the Nix source differ from what a plain
-      # `nix build github:owner/repo/ref` sees, so the two evaluate different
-      # derivations and the binary cache can never serve the second -- which is
-      # the point of building here at all. Nothing reads the clock either: the
-      # commit date is stable, so a rebuilt commit still substitutes.
-      stamp = self.lastModifiedDate or "";
+      # What the commit can say about itself, and nothing more: a flake ref
+      # carries the commit and its date, not the branch, the owner or the tag.
+      # tools/ci/display-version.sh is the one implementation of the identity
+      # format -- it runs at build time here and for the withRef wrapper, and in
+      # the CI legs for the tarballs -- so nothing about the format is repeated
+      # in Nix. The store version only has to be unique and readable.
       shortRev = self.dirtyShortRev or self.shortRev or "";
-      identity =
-        if builtins.stringLength stamp >= 12 && shortRev != "" then
-          "${builtins.substring 0 4 stamp}-${builtins.substring 4 2 stamp}-${builtins.substring 6 2 stamp}_${builtins.substring 8 2 stamp}-${builtins.substring 10 2 stamp} (${shortRev})"
-        else
-          # No git metadata at all (a source tarball): keep release versioning.
-          "v${nixpkgs.lib.removeSuffix "\n" (builtins.readFile ./VERSION)}";
+      commit = self.rev or "";
+      commitTime = self.lastModifiedDate or "";
+      releaseVersion = nixpkgs.lib.removeSuffix "\n" (builtins.readFile ./VERSION);
 
       # The manifest readers and buildEdenEmulator for each system.
       emulatorTools = forAllSystems (
@@ -53,17 +41,15 @@
         let
           pkgs = nixpkgs.legacyPackages.${system};
           pgo = extra.pgo or false;
-          display = identity + nixpkgs.lib.optionalString pgo " (PGO)";
-          # A store path name takes [A-Za-z0-9+._?=-] only; the " (PGO)" marker
-          # becomes the "-pgo" suffix the rest of the tree already uses.
+          # A store path name takes [A-Za-z0-9+._?=-] only, and it only has to be
+          # unique and readable: the human-facing identity is composed by the
+          # script during the build, so nothing of the format is repeated here.
           version =
-            nixpkgs.lib.replaceStrings [ " " "(" ")" ] [ "-" "" "" ] identity
-            + nixpkgs.lib.optionalString pgo "-pgo";
+            "${releaseVersion}-${shortRev}" + nixpkgs.lib.optionalString pgo "-pgo";
         in
         pkgs.callPackage ./nix/package.nix (
           {
-            inherit display version;
-            commit = self.rev or "";
+            inherit commit commitTime version;
             src = ./.;
             buildEdenEmulator = emulatorTools.${system}.buildEdenEmulator;
           }
@@ -71,15 +57,17 @@
         );
     in
     {
-      # The composed identity, for CI to check against tools/ci/display-version.sh.
-      inherit identity;
-
       # A build labelled with the ref it was fetched from. The commit knows its
       # date and its sha; only the consumer knows which ref they asked for, so
       # this wraps the cached, identity-independent binary and hands the full
       # string to it at runtime (EGLANTINE_DISPLAY, see
       # src/common/scm_rev.cpp.in). The wrapper is a script: the heavy artefact
       # stays shared, so this costs a second to build and does not touch the cache.
+      #
+      # The label is composed by tools/ci/display-version.sh -- the same script
+      # the binary's own identity and the tarball legs come from. It runs here
+      # because only the consumer knows the ref, and it needs no git because the
+      # commit and its time are handed over.
       withRef = forAllSystems (
         system:
         {
@@ -91,26 +79,19 @@
         let
           pkgs = nixpkgs.legacyPackages.${system};
           base = mkEglantine system { inherit pgo; };
-          # The same prefix rules as tools/ci/display-version.sh: nothing for the
-          # upstream repository, the repository name for a sibling in the
-          # organisation, owner/repo for everything else.
-          prefix =
-            if owner == "Eglantine-Community" then
-              (if repo == "Eglantine" then "" else "${repo}/")
-            else
-              "${owner}/${repo}/";
-          display = "${prefix}${ref} - ${identity}" + nixpkgs.lib.optionalString pgo " (PGO)";
         in
         pkgs.symlinkJoin {
           name = "${base.name}-with-ref";
           paths = [ base ];
           nativeBuildInputs = [ pkgs.makeWrapper ];
           postBuild = ''
-            wrapProgram $out/bin/eglantine --set EGLANTINE_DISPLAY '${display}'
+            display=$(bash ${./tools/ci/display-version.sh} \
+              --owner '${owner}' --repo '${repo}' --branch '${ref}' \
+              --sha '${commit}' --commit-time '${commitTime}' \
+              ${nixpkgs.lib.optionalString pgo "--pgo"})
+            echo "labelling the build: $display"
+            wrapProgram $out/bin/eglantine --set EGLANTINE_DISPLAY "$display"
           '';
-          passthru = {
-            inherit display;
-          };
         }
       );
 

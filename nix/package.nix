@@ -7,12 +7,13 @@
 , llvmPackages_23
 , src
 , version
-, # The identity composed by flake.nix (see there): the commit date and the sha.
-  display ? ""
-, # The commit that identity describes. The Nix sandbox has no .git and the
-  # GIT-* files are not written into the tree, so this is where the commit comes
-  # from; CMakeModules/GenerateSCMRev.cmake prefers it over asking git.
+, # The commit this build describes, and its time in the YYYYMMDDHHMMSS form Nix
+  # reports. The sandbox has no .git and no GIT-* file is written into the tree,
+  # so these are what identity composition works from: the display string is
+  # composed during the build by tools/ci/display-version.sh -- the same script
+  # the CI legs run -- and CMake takes the commit from EGLANTINE_COMMIT.
   commit ? ""
+, commitTime ? ""
 , pgo ? false
 , # CPU tuning, off by default, only here for tinkerers
   march ? null
@@ -333,20 +334,26 @@ buildEdenEmulator (
     # opt-in build-identity, see above
     env =
       lib.optionalAttrs nixBuildIdentity {
-        # The identity itself is composed by flake.nix; the only thing left for
-        # the binary to say is which packaging layer produced it.
+        # The identity itself is composed by tools/ci/display-version.sh below;
+        # the only thing left for the binary to say is which packaging layer
+        # produced it.
         EGLANTINE_FLAVOUR = "nix";
       }
-      // lib.optionalAttrs (display != "") {
-        # Read by src/common/CMakeLists.txt. A GIT-DISPLAY file in the tree would
-        # make the source differ from a plain flake fetch and cost the cache hit.
-        DISPLAYVERSION = display;
-      }
       // lib.optionalAttrs (commit != "") {
-        # Ditto for the commit: no .git in the sandbox, and no GIT-* files either.
+        # No .git in the sandbox and no GIT-* files either, so the commit is
+        # stated here; CMakeModules/GenerateSCMRev.cmake prefers it over git.
         EGLANTINE_COMMIT = commit;
         EGLANTINE_REFSPEC = "nix";
       };
+
+    # One implementation of the identity format, run here instead of re-expressed
+    # in Nix: the script is the same one the tarball legs and the withRef wrapper
+    # use, and it needs no git because the commit and its time are handed over.
+    preConfigure = lib.optionalString (commit != "" && commitTime != "") ''
+      export DISPLAYVERSION=$(bash ./tools/ci/display-version.sh --sha-date \
+        --sha "${commit}" --commit-time "${commitTime}")
+      echo "build identity: $DISPLAYVERSION"
+    '';
 
     meta = {
       description = "Experimental Nintendo Switch 2 emulator";

@@ -30,6 +30,10 @@
 # composes for itself, because a flake ref carries the commit and its date but
 # not the branch or the owner; build-nix.yml compares the two so they cannot
 # drift apart.
+#
+# --commit-time YYYYMMDDHHMMSS supplies the commit time for callers that have it
+# but no git: Nix knows the timestamp of the commit it is building and hands it
+# over here, so this script stays the only thing that composes an identity.
 set -euo pipefail
 
 canonical_owner=Eglantine-Community
@@ -52,6 +56,7 @@ render='display'
 release=''
 pgo=false
 root='.'
+commit_time_arg=''
 
 repo_slug=${GITHUB_REPOSITORY:-}
 owner=${GITHUB_REPOSITORY_OWNER:-}
@@ -78,6 +83,7 @@ while (($#)); do
     --pgo) pgo=true; shift ;;
     --store) render=store; shift ;;
     --sha-date) render=sha-date; shift ;;
+    --commit-time) commit_time_arg=${2:?--commit-time needs a value}; shift 2 ;;
     -h | --help) usage; exit 0 ;;
     *) echo "display-version.sh: unknown argument: $1" >&2; exit 2 ;;
   esac
@@ -103,8 +109,14 @@ esac
 
 # Committer date of the built commit, in UTC. A shallow fetch of exactly that
 # commit is enough; if the object is missing, say so rather than invent one.
+# A caller with no git but with the timestamp (the Nix build, which is handed
+# self.lastModifiedDate) passes the same YYYYMMDDHHMMSS form Nix reports.
 commit_time=$unknown_time
-if [ -n "$sha" ]; then
+if [ -n "$commit_time_arg" ]; then
+  if ((${#commit_time_arg} >= 12)); then
+    commit_time="${commit_time_arg:0:4}-${commit_time_arg:4:2}-${commit_time_arg:6:2}_${commit_time_arg:8:2}-${commit_time_arg:10:2}"
+  fi
+elif [ -n "$sha" ]; then
   if out=$(TZ=UTC git -C "$root" log -1 --date=format-local:"$date_format" --format=%cd "$sha" 2> /dev/null); then
     [ -n "$out" ] && commit_time=$out
   fi
