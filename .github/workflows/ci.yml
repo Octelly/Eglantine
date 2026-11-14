@@ -83,8 +83,6 @@ jobs:
       version: ${{ steps.scheme.outputs.version }}
       display: ${{ steps.scheme.outputs.display }}
       display_pgo: ${{ steps.scheme.outputs.display_pgo }}
-      display_store: ${{ steps.scheme.outputs.display_store }}
-      display_pgo_store: ${{ steps.scheme.outputs.display_pgo_store }}
       refspec: ${{ steps.scheme.outputs.refspec }}
       sha: ${{ steps.scheme.outputs.sha }}
       skip: ${{ steps.scheme.outputs.skip }}

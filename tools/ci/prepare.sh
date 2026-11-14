@@ -141,17 +141,14 @@ if [[ -n "$display_release" ]]; then
 fi
 display=$(bash "$here/display-version.sh" "${display_args[@]}")
 display_pgo=$(bash "$here/display-version.sh" "${display_args[@]}" --pgo)
-# The Nix side needs the same identity inside a store path name, where slashes
-# and parentheses are illegal; the script's --store rendering is the only place
-# that rule lives, so the legs do not re-derive it.
-display_store=$(bash "$here/display-version.sh" "${display_args[@]}" --store)
-display_pgo_store=$(bash "$here/display-version.sh" "${display_args[@]}" --pgo --store)
-
-# The file naming follows the identity: an AppImage, an artifact and a Nix store
-# path then carry the same string, so a downloaded file says which build it is.
-# `tag` stays a separate, shorter, URL-safe thing: it is the only field a client
-# can compare against a published release, and it must not carry slashes.
-version=$display_store
+# The file naming follows the identity: an AppImage and an artifact then carry
+# the same string, so a downloaded file says which build it is. `tag` stays a
+# separate, shorter, URL-safe thing: it is the only field a client can compare
+# against a published release, and it must not carry slashes. The store-safe
+# rendering lives in the script so that a name never contains a slash or a
+# parenthesis; nothing else consumes it now that the Nix side composes its own
+# identity from the commit.
+version=$(bash "$here/display-version.sh" "${display_args[@]}" --store)
 
 title=$(oneline "$title")
 
@@ -161,8 +158,6 @@ emit title "$title"
 emit version "$version"
 emit display "$display"
 emit display_pgo "$display_pgo"
-emit display_store "$display_store"
-emit display_pgo_store "$display_pgo_store"
 emit refspec "$refspec"
 emit sha "$sha"
 emit skip "$skip"
