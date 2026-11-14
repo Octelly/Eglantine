@@ -90,6 +90,8 @@
               --sha '${commit}' --commit-time '${commitTime}' \
               ${nixpkgs.lib.optionalString pgo "--pgo"})
             echo "labelling the build: $display"
+            # --set, not --set-default: the label belongs to the build, so a
+            # variable in the caller's environment must not replace it.
             wrapProgram $out/bin/eglantine --set EGLANTINE_DISPLAY "$display"
           '';
         }

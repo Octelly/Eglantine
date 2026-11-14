@@ -258,6 +258,11 @@ buildEdenEmulator (
       "-DBUILD_TESTING=OFF"
       "-DYUZU_ROOM=OFF"
 
+      # Only this package compiles the runtime identity hook in: its withRef
+      # wrapper sets EGLANTINE_DISPLAY to the ref the source came from, which the
+      # commit cannot record. Every other build leaves the hook out.
+      "-DEGLANTINE_DISPLAY_FROM_ENV=ON"
+
       # NIGHTLY_BUILD is not a flag here: CMakeLists.txt turns it on when a
       # GIT-NIGHTLY file sits in the source root, the same way GIT-RELEASE
       # already decides release-ness. CI drops that file in before building.

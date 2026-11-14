@@ -19,9 +19,10 @@ endif()
 
 # The display identity: what the window title and the About dialog show. CI
 # writes it next to the GIT-* files GetSCMRev reads (.github/actions/setup-build
-# for the plain legs, the Nix job's "Write SCM files" step for the flake). A
-# local build has no such file and falls back to the version composed from those
-# files, so nothing here can produce an empty title.
+# for the plain legs); the Nix package exports DISPLAYVERSION instead, because a
+# file in the tree would make its source differ from a plain flake fetch. A local
+# build has neither and falls back to the version composed from those files, so
+# nothing here can produce an empty title.
 set(EGLANTINE_DISPLAY_VERSION "")
 if(EXISTS "${CMAKE_SOURCE_DIR}/GIT-DISPLAY")
     file(READ "${CMAKE_SOURCE_DIR}/GIT-DISPLAY" EGLANTINE_DISPLAY_VERSION)
@@ -35,6 +36,17 @@ endif()
 set(EGLANTINE_BUILD_FLAVOUR "")
 if(DEFINED ENV{EGLANTINE_FLAVOUR})
     set(EGLANTINE_BUILD_FLAVOUR $ENV{EGLANTINE_FLAVOUR})
+endif()
+
+# Let the packaging layer override the identity at runtime. Only the Nix package
+# turns this on: it wraps the cached binary and hands it the ref the build came
+# from, which no commit can record (see flake.nix's withRef). Every other build
+# compiles the hook out, so EGLANTINE_DISPLAY cannot relabel a tarball build.
+option(EGLANTINE_DISPLAY_FROM_ENV "Allow the packaging layer to override the build identity at runtime" OFF)
+if(EGLANTINE_DISPLAY_FROM_ENV)
+    set(EGLANTINE_DISPLAY_FROM_ENV_VALUE 1)
+else()
+    set(EGLANTINE_DISPLAY_FROM_ENV_VALUE 0)
 endif()
 
 # Both values end up inside C string literals. Git allows quotes and backslashes

@@ -6,6 +6,7 @@
 
 #include "common/scm_rev.h"
 
+#include <cstddef>
 #include <cstdlib>
 #include <string>
 
@@ -18,6 +19,7 @@
 #define BUILD_VERSION "@BUILD_VERSION@"
 #define EGLANTINE_DISPLAY_VERSION "@EGLANTINE_DISPLAY_VERSION@"
 #define EGLANTINE_BUILD_FLAVOUR "@EGLANTINE_BUILD_FLAVOUR@"
+#define EGLANTINE_DISPLAY_FROM_ENV @EGLANTINE_DISPLAY_FROM_ENV_VALUE@
 #undef BUILD_ID
 #define BUILD_ID "@BUILD_ID@"
 #define TITLE_BAR_FORMAT_IDLE "@TITLE_BAR_FORMAT_IDLE@"
@@ -58,18 +60,47 @@ constexpr const char g_build_release_platform[] = BUILD_RELEASE_PLATFORM;
 // build, plus the packaging flavour when there is one. Falls back to the version
 // composed from the GIT-* files for builds that were given no identity at all.
 //
-// A packager that knows more than the commit does -- which ref it was fetched
-// from, which the commit itself cannot record -- overrides the identity here
-// instead of rebuilding the binary for it: the Nix flake's `withRef` wraps the
-// executable and sets EGLANTINE_DISPLAY. A plain build never sets it, and the
-// compiled string stays what the commit knows on its own.
-std::string BuildDisplayName() {
-    const char* identity_override = std::getenv("EGLANTINE_DISPLAY");
-    const char* display = g_display_version;
-    if (identity_override != nullptr && identity_override[0] != '\0') {
-        display = identity_override;
+// A packager that knows what the commit cannot record -- which ref the source was
+// fetched from -- may override the identity at runtime instead of rebuilding for
+// it. Only the Nix package compiles that in (EGLANTINE_DISPLAY_FROM_ENV): its
+// wrapper sets the variable, so the cached binary can be labelled per ref. Every
+// other build leaves the hook out, and the compiled string is the only one.
+#if defined(EGLANTINE_DISPLAY_FROM_ENV) && EGLANTINE_DISPLAY_FROM_ENV
+namespace {
+// Not a user-facing setting, so accept the value only when it looks like an
+// identity: bounded length, no control characters. It ends up in the title bar
+// and the About dialog, and a stray newline there is a defect, not a feature.
+constexpr std::size_t kMaxDisplayLength = 160;
+
+std::string DisplayFromEnvironment() {
+    const char* value = std::getenv("EGLANTINE_DISPLAY");
+    if (value == nullptr) {
+        return {};
     }
-    if (display[0] != '\0') {
+    const std::string candidate{value};
+    if (candidate.empty() || candidate.size() > kMaxDisplayLength) {
+        return {};
+    }
+    for (const char character : candidate) {
+        const auto byte = static_cast<unsigned char>(character);
+        if (byte < 0x20 || byte == 0x7f) {
+            return {};
+        }
+    }
+    return candidate;
+}
+} // namespace
+#endif
+
+std::string BuildDisplayName() {
+#if defined(EGLANTINE_DISPLAY_FROM_ENV) && EGLANTINE_DISPLAY_FROM_ENV
+    const std::string from_environment = DisplayFromEnvironment();
+#else
+    const std::string from_environment;
+#endif
+    const std::string display =
+        from_environment.empty() ? std::string{g_display_version} : from_environment;
+    if (!display.empty()) {
         std::string name{g_build_name};
         name += ' ';
         name += display;
