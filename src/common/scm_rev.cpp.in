@@ -6,6 +6,7 @@
 
 #include "common/scm_rev.h"
 
+#include <cstdlib>
 #include <string>
 
 #define GIT_REV "@GIT_COMMIT@"
@@ -56,11 +57,22 @@ constexpr const char g_build_release_platform[] = BUILD_RELEASE_PLATFORM;
 // What the window title and the About dialog show: the identity CI handed this
 // build, plus the packaging flavour when there is one. Falls back to the version
 // composed from the GIT-* files for builds that were given no identity at all.
+//
+// A packager that knows more than the commit does -- which ref it was fetched
+// from, which the commit itself cannot record -- overrides the identity here
+// instead of rebuilding the binary for it: the Nix flake's `withRef` wraps the
+// executable and sets EGLANTINE_DISPLAY. A plain build never sets it, and the
+// compiled string stays what the commit knows on its own.
 std::string BuildDisplayName() {
-    if (g_display_version[0] != '\0') {
+    const char* identity_override = std::getenv("EGLANTINE_DISPLAY");
+    const char* display = g_display_version;
+    if (identity_override != nullptr && identity_override[0] != '\0') {
+        display = identity_override;
+    }
+    if (display[0] != '\0') {
         std::string name{g_build_name};
         name += ' ';
-        name += g_display_version;
+        name += display;
         if (g_build_flavour[0] != '\0') {
             name += " (";
             name += g_build_flavour;

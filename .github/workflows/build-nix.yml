@@ -92,13 +92,17 @@ jobs:
             # Compiler-object cache, read and written by the build users.
             extra-sandbox-paths = /nix/var/cache/ccache
 
-      # One string, two implementations: the shell composer the tarball legs use
-      # and the Nix expression this leg builds with. They cannot be merged (a flake
-      # cannot execute a script while it evaluates), so they are compared instead.
+      # One string, three implementations: the shell composer the tarball legs use,
+      # the reduced identity this leg bakes into the binary, and the full label the
+      # withRef wrapper hands it at runtime. They cannot be merged (a flake cannot
+      # execute a script while it evaluates), so they are compared instead.
       - name: Identity matches the flake
         shell: bash
         env:
           BUILD_SHA: ${{ inputs.sha }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          REF_NAME: ${{ github.head_ref || github.ref_name }}
         run: |
           set -uo pipefail
           from_script=$(tools/ci/display-version.sh --sha-date --sha "$BUILD_SHA")
@@ -107,6 +111,18 @@ jobs:
           echo "flake:              $from_flake"
           if [ "$from_script" != "$from_flake" ]; then
             echo "::error::flake.nix and tools/ci/display-version.sh disagree on the identity"
+            exit 1
+          fi
+          # The full string: the ref reaches the build here and nowhere else.
+          full_script=$(tools/ci/display-version.sh --owner "$REPO_OWNER" --repo "$REPO_NAME" \
+                          --branch "$REF_NAME" --sha "$BUILD_SHA")
+          full_flake=$(nix eval --raw --apply \
+            "f: (f { owner = \"$REPO_OWNER\"; repo = \"$REPO_NAME\"; ref = \"$REF_NAME\"; }).passthru.display" \
+            .#withRef.x86_64-linux)
+          echo "display-version.sh: $full_script"
+          echo "withRef:            $full_flake"
+          if [ "$full_script" != "$full_flake" ]; then
+            echo "::error::flake.nix's withRef and tools/ci/display-version.sh disagree"
             exit 1
           fi
 

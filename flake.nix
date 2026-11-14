@@ -74,6 +74,46 @@
       # The composed identity, for CI to check against tools/ci/display-version.sh.
       inherit identity;
 
+      # A build labelled with the ref it was fetched from. The commit knows its
+      # date and its sha; only the consumer knows which ref they asked for, so
+      # this wraps the cached, identity-independent binary and hands the full
+      # string to it at runtime (EGLANTINE_DISPLAY, see
+      # src/common/scm_rev.cpp.in). The wrapper is a script: the heavy artefact
+      # stays shared, so this costs a second to build and does not touch the cache.
+      withRef = forAllSystems (
+        system:
+        {
+          owner,
+          repo,
+          ref,
+          pgo ? false,
+        }:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+          base = mkEglantine system { inherit pgo; };
+          # The same prefix rules as tools/ci/display-version.sh: nothing for the
+          # upstream repository, the repository name for a sibling in the
+          # organisation, owner/repo for everything else.
+          prefix =
+            if owner == "Eglantine-Community" then
+              (if repo == "Eglantine" then "" else "${repo}/")
+            else
+              "${owner}/${repo}/";
+          display = "${prefix}${ref} - ${identity}" + nixpkgs.lib.optionalString pgo " (PGO)";
+        in
+        pkgs.symlinkJoin {
+          name = "${base.name}-with-ref";
+          paths = [ base ];
+          nativeBuildInputs = [ pkgs.makeWrapper ];
+          postBuild = ''
+            wrapProgram $out/bin/eglantine --set EGLANTINE_DISPLAY '${display}'
+          '';
+          passthru = {
+            inherit display;
+          };
+        }
+      );
+
       packages = forAllSystems (system: {
         eglantine = mkEglantine system { };
         eglantine-pgo = mkEglantine system { pgo = true; };
