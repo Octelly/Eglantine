@@ -83,6 +83,10 @@ jobs:
       tag: ${{ steps.scheme.outputs.tag }}
       title: ${{ steps.scheme.outputs.title }}
       version: ${{ steps.scheme.outputs.version }}
+      display: ${{ steps.scheme.outputs.display }}
+      display_pgo: ${{ steps.scheme.outputs.display_pgo }}
+      display_store: ${{ steps.scheme.outputs.display_store }}
+      display_pgo_store: ${{ steps.scheme.outputs.display_pgo_store }}
       refspec: ${{ steps.scheme.outputs.refspec }}
       sha: ${{ steps.scheme.outputs.sha }}
       skip: ${{ steps.scheme.outputs.skip }}
@@ -145,6 +149,8 @@ jobs:
     with:
       sha: ${{ needs.prepare.outputs.sha }}
       version: ${{ needs.prepare.outputs.version }}
+      display: ${{ needs.prepare.outputs.display }}
+      display_pgo: ${{ needs.prepare.outputs.display_pgo }}
       refspec: ${{ needs.prepare.outputs.refspec }}
       tag: ${{ needs.prepare.outputs.tag }}
       release: ${{ needs.prepare.outputs.kind == 'stable' || needs.prepare.outputs.kind == 'rc' }}
@@ -162,6 +168,8 @@ jobs:
     with:
       sha: ${{ needs.prepare.outputs.sha }}
       version: ${{ needs.prepare.outputs.version }}
+      display: ${{ needs.prepare.outputs.display }}
+      display_pgo: ${{ needs.prepare.outputs.display_pgo }}
       refspec: ${{ needs.prepare.outputs.refspec }}
       tag: ${{ needs.prepare.outputs.tag }}
       release: ${{ needs.prepare.outputs.kind == 'stable' || needs.prepare.outputs.kind == 'rc' }}
@@ -179,6 +187,7 @@ jobs:
     with:
       sha: ${{ needs.prepare.outputs.sha }}
       version: ${{ needs.prepare.outputs.version }}
+      display: ${{ needs.prepare.outputs.display }}
       refspec: ${{ needs.prepare.outputs.refspec }}
       tag: ${{ needs.prepare.outputs.tag }}
       release: ${{ needs.prepare.outputs.kind == 'stable' || needs.prepare.outputs.kind == 'rc' }}
@@ -205,6 +214,10 @@ jobs:
     uses: ./.github/workflows/build-nix.yml
     with:
       sha: ${{ needs.prepare.outputs.sha }}
+      display: ${{ needs.prepare.outputs.display }}
+      display_pgo: ${{ needs.prepare.outputs.display_pgo }}
+      display_store: ${{ needs.prepare.outputs.display_store }}
+      display_pgo_store: ${{ needs.prepare.outputs.display_pgo_store }}
       linux: ${{ github.event_name != 'workflow_dispatch' || inputs.build_linux }}
       macos: ${{ github.event_name != 'workflow_dispatch' || inputs.build_macos }}
       # Same identity inputs the linux job gets, so the Nix binary reports the
