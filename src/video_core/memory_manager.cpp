@@ -1222,7 +1222,7 @@ void MemoryManager::FlushCaching() {
                 std::sort(page_stash2.begin(), page_stash2.end());
             }
             size_t count = 0;
-            for (const auto range : page_stash2) {
+            for (const auto& range : page_stash2) {
                 if (count != 0 && range.first <= page_stash2[count - 1].first +
                                                    page_stash2[count - 1].second) {
                     auto& previous = page_stash2[count - 1];
