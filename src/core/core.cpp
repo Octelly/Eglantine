@@ -397,8 +397,16 @@ struct System::Impl {
             const char* value = std::getenv("EDEN_NX2_CNTFRQ");
             return value != nullptr ? std::strtoull(value, nullptr, 10) : 0ULL;
         }();
+        // The counter the guest SDK converts ticks with. A Switch 1 program given the full Switch 2
+        // environment ("Switch 2 identity" in its properties) gets the Switch 2 rate, as Nintendo's
+        // compatibility layer overrides nn::os::GetSystemTickFrequency to 31.25 MHz; Identify alone
+        // keeps 19.2 MHz, so a game's timing is untouched when only the platform answer is faked.
+        const bool switch2_clock =
+            switch2_program ||
+            Settings::values.switch2_guest_mode.GetValue() ==
+                Settings::Switch2GuestMode::FullEnvironment;
         const u64 cntfrq = forced_cntfrq != 0 ? forced_cntfrq
-                           : switch2_program  ? Common::WallClock::Switch2CNTFRQ
+                           : switch2_clock    ? Common::WallClock::Switch2CNTFRQ
                                               : Common::WallClock::CNTFRQ;
         Common::g_wall_clock.SetGuestCNTFRQ(cntfrq);
         LOG_INFO(Core, "Guest counter frequency: {} Hz", cntfrq);

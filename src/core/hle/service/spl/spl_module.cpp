@@ -132,13 +132,28 @@ void Module::Interface::GetBootReason(HLERequestContext& ctx) {
 }
 
 Result Module::Interface::GetConfigImpl(u64* out_config, ConfigItem config_item) const {
+    const bool full_switch2_environment =
+        Settings::values.switch2_guest_mode.GetValue() ==
+        Settings::Switch2GuestMode::FullEnvironment;
     switch (config_item) {
+    case ConfigItem::HardwareType:
+        if (full_switch2_environment) {
+            // The Switch 2 board, which is what the compatibility layer's environment reports; a
+            // program that branches on the board then takes its Switch 2 path.
+            *out_config = static_cast<u64>(HardwareType::Calcio);
+            return ResultSuccess;
+        }
+        return ResultSecureMonitorNotImplemented;
+    case ConfigItem::HardwareState:
+        if (full_switch2_environment) {
+            *out_config = static_cast<u64>(HardwareState::Production);
+            return ResultSuccess;
+        }
+        return ResultSecureMonitorNotImplemented;
     case ConfigItem::DisableProgramVerification:
     case ConfigItem::DramId:
     case ConfigItem::SecurityEngineInterruptNumber:
     case ConfigItem::FuseVersion:
-    case ConfigItem::HardwareType:
-    case ConfigItem::HardwareState:
     case ConfigItem::IsRecoveryBoot:
     case ConfigItem::DeviceId:
     case ConfigItem::BootReason:
