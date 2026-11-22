@@ -8,10 +8,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <algorithm>
+#include <array>
 #include <cinttypes>
 #include <cstring>
 #include <mutex>
 #include <span>
+#include <string_view>
 #include <vector>
 
 #include "common/common_funcs.h"
@@ -30,6 +32,7 @@
 #include "core/hle/kernel/k_thread.h"
 #include "core/hle/nvn/bridge.h"
 #include "core/hle/nvn/config.h"
+#include "core/hle/nvn/dynsym.h"
 #include "core/hle/nvn/hle_call.h"
 #include "core/hle/nvn/thunk_encoding.h"
 #include "core/hle/service/nx2_frame_interval.h"
@@ -57,6 +60,12 @@ static_assert(sizeof(MODHeader) == 0x1c, "MODHeader has incorrect size.");
 constexpr u32 PageAlignSize(u32 size) {
     return static_cast<u32>((size + Core::Memory::YUZU_PAGEMASK) & ~Core::Memory::YUZU_PAGEMASK);
 }
+
+/// The SDK symbol a Switch 1 program's platform answer lives in: nn::pl::IsRunningOnOunce(),
+/// mangled _ZN2nn2pl16IsRunningOnOunceEv. Matched as a fragment so a build that mangled it for
+/// another signature is still found; the stub body check decides what actually gets written.
+/// Namespace scope, not a function-local constant: a captureless lambda cannot use one.
+constexpr std::string_view PlatformSymbol = "IsRunningOnOunce";
 } // Anonymous namespace
 
 bool NSOHeader::IsSegmentCompressed(size_t segment_num) const {
@@ -475,6 +484,60 @@ std::optional<VAddr> AppLoader_NSO::LoadModule(Kernel::KProcess& process, Core::
                  choice.hle ? "the NVN bridge is not available with this CPU backend"
                             : Settings::NvnHleReasonText(choice.reason));
     }
+    // A Switch 1 program told it is a Switch 2 ("Switch 2 identity" in the game's properties).
+    // The SDK's nn::pl::IsRunningOnOunce() is a constant-false stub in a Switch 1 SDK build, and
+    // on the console Nintendo's compatibility layer replaces that symbol so the game takes the
+    // Switch 2 paths its update shipped. Rewrite the stub's constant in whichever module defines
+    // it; callers reach it by relocation, so the definition is the only site to patch.
+    const auto guest_identity = Settings::values.switch2_guest_mode.GetValue();
+    if (guest_identity != Settings::Switch2GuestMode::Off && process.IsApplication() &&
+        !Settings::CurrentProgramIsSwitch2()) {
+        constexpr u32 StubFalseMove = 0x2A1F03E0; // mov w0, wzr
+        constexpr u32 StubReturn = 0xD65F03C0;     // ret
+        constexpr u32 StubTrueMove = 0x52800020;   // mov w0, #1; the stub's own ret stays
+        std::span<u8> const module_image{codeset.memory.data() + module_start,
+                                         codeset.memory.size() - module_start};
+        // string_view::contains is C++23; the project builds as C++20.
+        const auto hits = Core::NvnHle::FindDynsymHits(
+            module_image, [](std::string_view symbol) {
+                return symbol.find(PlatformSymbol) != std::string_view::npos;
+            });
+        for (const auto& hit : hits) {
+            std::array<u32, 2> words{};
+            if (hit.value + sizeof(words) > module_image.size()) {
+                LOG_WARNING(Loader,
+                            "Switch 2 identity: {} in module {} (build id {}) lies past the "
+                            "image; not patched",
+                            hit.name, name, Common::HexToString(nso_header.build_id));
+                continue;
+            }
+            std::memcpy(words.data(), module_image.data() + hit.value, sizeof(words));
+            if (words[0] != StubFalseMove || words[1] != StubReturn) {
+                LOG_WARNING(Loader,
+                            "Switch 2 identity: {} in module {} (build id {}) holds {:#010x} "
+                            "{:#010x}, not the constant-false stub; not patched",
+                            hit.name, name, Common::HexToString(nso_header.build_id), words[0],
+                            words[1]);
+                continue;
+            }
+            std::memcpy(module_image.data() + hit.value, &StubTrueMove, sizeof(StubTrueMove));
+            LOG_INFO(Loader,
+                     "Switch 2 identity: {} in module {} (build id {}) now answers true ({} "
+                     "mode, offset {:#x})",
+                     hit.name, name, Common::HexToString(nso_header.build_id),
+                     guest_identity == Settings::Switch2GuestMode::FullEnvironment ? "full"
+                                                                                   : "identify",
+                     hit.value);
+        }
+        if (hits.empty() && name.starts_with("sdk")) {
+            // The option must not look like it did nothing: say where the answer was looked for.
+            LOG_INFO(Loader,
+                     "Switch 2 identity: module {} (build id {}) exports no {}, so this program's "
+                     "platform answer was not patched",
+                     name, Common::HexToString(nso_header.build_id), PlatformSymbol);
+        }
+    }
+
     if (name == "main" && process.GetProgramId() == Service::Nx2OotTime::ProgramId) {
         const size_t hook = module_start + Service::Nx2OotTime::HookOffset;
         u32 word = 0;
