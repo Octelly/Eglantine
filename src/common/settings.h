@@ -83,6 +83,7 @@ SWITCHABLE(RendererBackend, true);
 SWITCHABLE(ScalingFilter, false);
 SWITCHABLE(SpirvOptimizeMode, true);
 SWITCHABLE(TimeZone, true);
+SWITCHABLE(Switch2GuestMode, true);
 SETTING(VSyncMode, true);
 SWITCHABLE(bool, false);
 SWITCHABLE(int, false);
@@ -905,6 +906,14 @@ struct Values {
                                                    Specialization::Radio,
                                                    true,
                                                    true};
+
+    // Which console a Switch 1 program is told it runs on. Read when the program's modules load
+    // (the SDK's platform answer is a constant in guest code, patched at load), so it is not
+    // runtime modifiable. Set per game: identity lies are title-specific.
+    SwitchableSetting<Switch2GuestMode, true> switch2_guest_mode{linkage,
+                                                                 Switch2GuestMode::Off,
+                                                                 "switch2_guest_mode",
+                                                                 Category::System};
 
     // Controls
     InputSetting<std::array<PlayerInput, 10>> players;

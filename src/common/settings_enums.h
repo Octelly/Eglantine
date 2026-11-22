@@ -172,6 +172,11 @@ ENUM(Upscaler, Auto, Game, Fsr, Bilinear, Dlss, Dlaa);
 ENUM(ColdHintMode, Off, WhenRamIsLow, Always);
 ENUM(MeshShaderMode, Auto, Native, ComputeFallback);
 ENUM(UpdateChannel, Unset, Stable, ReleaseCandidate, Daily);
+// What a Switch 1 program is told about the console it runs on. Off leaves the SDK's own answer
+// alone; Identify rewrites the SDK's nn::pl::IsRunningOnOunce() constant-false stub so the program
+// takes the Switch 2 code paths its update shipped; FullEnvironment also runs the guest counter at
+// the Switch 2 frequency and reports the Switch 2 hardware type to spl:u.
+ENUM(Switch2GuestMode, Off, Identify, FullEnvironment);
 
 template <typename Type>
 inline std::string_view CanonicalizeEnum(Type id) {

@@ -420,6 +420,19 @@ std::unique_ptr<TranslationMap> InitializeTranslations(QObject* parent) {
               "their resolution, details and supported controllers and depending on this setting.\n"
               "Setting to Handheld can help improve performance for low end systems."));
     INSERT(Settings, current_user, QString(), QString());
+    INSERT(Settings, switch2_guest_mode, tr("Switch 2 identity:"),
+           tr("What a Switch 1 game is told about the console it runs on. Takes effect at the next "
+              "game start.\n"
+              "Off: the game sees a Switch 1, as always.\n"
+              "Identify as Switch 2: the game's own SDK answer to \"am I a Switch 2\" is flipped, "
+              "so the Switch 2 paths in its free update (extra players, unlocked frame rates) "
+              "become reachable. The console clock and hardware report stay Switch 1.\n"
+              "Full Switch 2 environment: the above, plus the guest counter runs at 31.25 MHz and "
+              "the hardware type reports the Switch 2, as Nintendo's compatibility layer does. "
+              "Timing-sensitive games may behave differently.\n"
+              "Neither mode changes the memory layout or the core count: a Switch 1 program sizes "
+              "its heap from the Switch 1 values. A game that takes a Switch 2 path may expect "
+              "services this emulator does not emulate yet, so test per game."));
 
     // Controls
 
@@ -828,6 +841,14 @@ std::unique_ptr<ComboboxTranslationMap> ComboboxEnumeration(QObject* parent) {
                           {
                               PAIR(GameListMode, TreeView, tr("Tree View")),
                               PAIR(GameListMode, GridView, tr("Grid View")),
+                          }});
+
+    translations->insert({Settings::EnumMetadata<Settings::Switch2GuestMode>::Index(),
+                          {
+                              PAIR(Switch2GuestMode, Off, tr("Stay a Switch 1")),
+                              PAIR(Switch2GuestMode, Identify, tr("Identify as a Switch 2")),
+                              PAIR(Switch2GuestMode, FullEnvironment,
+                                   tr("Full Switch 2 environment (identity + clock)")),
                           }});
 
 #undef PAIR

@@ -65,6 +65,7 @@ SWITCHABLE(RendererBackend, true);
 SWITCHABLE(ScalingFilter, false);
 SWITCHABLE(FrameGenType, false);
 SWITCHABLE(SpirvOptimizeMode, true);
+SWITCHABLE(Switch2GuestMode, true);
 SWITCHABLE(TimeZone, true);
 SETTING(VSyncMode, true);
 SWITCHABLE(bool, false);
