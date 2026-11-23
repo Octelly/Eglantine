@@ -37,6 +37,11 @@
 #undef False
 #undef None
 #undef True
+// Xlib's X.h (reached through vulkan_xlib.h on Linux) defines Success as 0, which collides with the
+// `Success` enumerators of the result enums (core.h, loader.h, nup_writer.h, registered_cache.h,
+// content_manager.h, nvdata.h) in every translation unit that includes this header first.
+// Same class of collision as the four above.
+#undef Success
 
 // "Catch-all" handle for both Android and.. the rest of platforms
 struct VkSurfaceKHR_T;
