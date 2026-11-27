@@ -234,7 +234,8 @@ jobs:
           cargo build --release --locked
           built=$(find target -name 'librenhdrum.so' -path '*/release/*' -type f | head -1)
           test -n "$built"
-          install -Dm755 "$built" build/release/bin/librenhdrum.so
+          # absolute: the step has cd'd into the clone, a relative target would land there
+          install -Dm755 "$built" "$GITHUB_WORKSPACE/build/release/bin/librenhdrum.so" 
 
       # Plain tar.gz with the two programs. GitHub artifacts drop the executable bit, so a tar is
       # what keeps it. This one is not self-contained: it needs Qt 6 and the usual libraries

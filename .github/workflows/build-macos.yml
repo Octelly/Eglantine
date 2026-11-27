@@ -151,7 +151,8 @@ jobs:
           cargo build --release --locked
           built=$(find target -name 'librenhdrum.dylib' -path '*/release/*' -type f | head -1)
           test -n "$built"
-          install -Dm755 "$built" build/release/bin/librenhdrum.dylib
+          # absolute: the step has cd'd into the clone, a relative target would land there
+          install -Dm755 "$built" "$GITHUB_WORKSPACE/build/release/bin/librenhdrum.dylib" 
 
       - name: Package macOS app
         shell: bash
