@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <limits>
+#include <memory>
 
 #include <QApplication>
 #include <QCheckBox>
@@ -164,6 +165,13 @@ ConfigureHdRumble::ConfigureHdRumble(Core::HID::HIDCore& hid_core_, QWidget* par
     } else {
         body_col->addWidget(MakeNote(tr("No compatible controller detected. Connect a compatible "
                                         "controller to use this feature.")));
+        // Once per launch: the first open of this dialog without a compatible controller
+        // gets the hardware warning, however many times the dialog opens this launch
+        static bool warned_this_launch = false;
+        if (!warned_this_launch) {
+            warned_this_launch = true;
+            ShowNoControllerWarning();
+        }
     }
 
     // Every other controller family stays one disclosure away, one card each
@@ -626,6 +634,50 @@ QWidget* ConfigureHdRumble::CreateAdvancedRows(unsigned device) {
         AddRow(col, first, extra, -1, 2);
     }
     return host;
+}
+
+void ConfigureHdRumble::ShowNoControllerWarning() {
+    // The button counts down 10 s on the first acknowledgement ever, 5 s on the second, and
+    // stops counting from the third on; only the count of acknowledgements persists.
+    const int seen = std::clamp(Settings::values.hd_rumble_warn_count.GetValue(), 0, 2);
+    const int countdown = seen == 0 ? 10 : seen == 1 ? 5 : 0;
+
+    QDialog warning(this);
+    warning.setWindowTitle(tr("HD Rumble needs hardware"));
+    auto* layout = new QVBoxLayout(&warning);
+    auto* text = new QLabel(tr(
+        "HD Rumble is a hardware feature: without a compatible controller connected it does "
+        "nothing, and even with one, some games may not always play correctly in edge cases. "
+        "If plain rumble matters more to you than the details, disabling HD Rumble may be "
+        "the better choice."));
+    text->setWordWrap(true);
+    layout->addWidget(text);
+    auto* button = new QPushButton(tr("I understand"));
+    button->setEnabled(countdown == 0);
+    if (countdown > 0) {
+        button->setText(tr("I understand (%1)").arg(countdown));
+    }
+    layout->addWidget(button, 0, Qt::AlignRight);
+    connect(button, &QPushButton::clicked, &warning, &QDialog::accept);
+
+    if (countdown > 0) {
+        auto remaining = std::make_shared<int>(countdown);
+        auto* timer = new QTimer(&warning);
+        connect(timer, &QTimer::timeout, &warning, [button, remaining, timer]() {
+            if (--*remaining > 0) {
+                button->setText(QObject::tr("I understand (%1)").arg(*remaining));
+                return;
+            }
+            timer->stop();
+            button->setText(QObject::tr("I understand"));
+            button->setEnabled(true);
+        });
+        timer->start(1000);
+    }
+
+    warning.exec();
+    Settings::values.hd_rumble_warn_count.SetValue(
+        std::clamp(Settings::values.hd_rumble_warn_count.GetValue() + 1, 0, 2));
 }
 
 void ConfigureHdRumble::TestRumble() {

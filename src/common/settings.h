@@ -940,6 +940,11 @@ struct Values {
     // Ryuhdr 0.2.6's recommended mode. Read by the SDL driver on every vibration, so a change in
     // the HD Rumble dialog applies to connected controllers right away.
     Setting<bool> hd_rumble_enabled{linkage, true, "hd_rumble_enabled", Category::Controls};
+    // How many times the HD Rumble dialog's no-controller warning was acknowledged: its
+    // button counts down 10 s the first time, 5 s the second, and stops counting after that.
+    // Only this count persists; the warning itself shows once per launch when the dialog is
+    // opened with no compatible controller connected.
+    Setting<int> hd_rumble_warn_count{linkage, 0, "hd_rumble_warn_count", Category::Controls};
     // Switch 2 rumble Mode last sent by the guest (commands 213 / 214): 2 = Mode 2, anything else
     // is played as Switch 1. Written by the HID service, read by the RenHDrum pad driver. Not a
     // user setting and not saved.

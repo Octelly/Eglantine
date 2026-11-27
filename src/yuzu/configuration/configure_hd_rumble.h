@@ -70,6 +70,9 @@ private:
     /// drives, and whichever controllers are in reach answer, so a user can both verify the
     /// pipeline and feel which pad is which.
     void TestRumble();
+    /// The no-controller warning: once per launch, with an escalating countdown on its only
+    /// button (10 s, then 5 s, then none, tracked by hd_rumble_warn_count).
+    void ShowNoControllerWarning();
     void LoadConfiguration();
     void RestoreDefaults();
     void UpdateEnabledState();
