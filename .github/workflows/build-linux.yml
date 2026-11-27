@@ -222,6 +222,8 @@ jobs:
       # packagers below cannot see it either: build it from the pinned release (the same
       # recipe nix/renhdrum.nix uses) and stage it next to the executables, where the loader
       # looks for it (SDL_GetBasePath). Upstream publishes no Linux library of its own.
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
       - name: Build RenHDrum
         shell: bash
         run: |
