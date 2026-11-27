@@ -143,11 +143,22 @@ ConfigureHdRumble::ConfigureHdRumble(Core::HID::HIDCore& hid_core_, QWidget* par
     body_col->addWidget(MakeNote(
         per_game ? tr("Intensity: this game has its own value, and changes here apply to it.")
                  : tr("Intensity multiplies the game's rumble.")));
+#ifdef _WIN32
+    const QString library_names =
+        tr("<b>renhdrum.dll</b> (Linux: librenhdrum.so, macOS: librenhdrum.dylib)");
+#elif defined(__APPLE__)
+    const QString library_names =
+        tr("<b>librenhdrum.dylib</b> (inside the app bundle; Windows: renhdrum.dll, "
+           "Linux: librenhdrum.so)");
+#else
+    const QString library_names =
+        tr("<b>librenhdrum.so</b> (Windows: renhdrum.dll, macOS: librenhdrum.dylib)");
+#endif
     body_col->addWidget(MakeNote(
         tr("Eglantine bundles RenHDrum on its own. You can supply your own build: point the "
-           "RENHDRUM_LIBRARY environment variable at it, or on Windows replace renhdrum.dll "
-           "next to the emulator. Use a build from the same release, or the settings may not "
-           "line up.")));
+           "RENHDRUM_LIBRARY environment variable at it, or drop it next to the emulator as "
+           "%1. Use a build from the same release, or the settings may not line up.")
+            .arg(library_names)));
     if (active != 0u) {
         body_col->addWidget(CreateDeviceCard(active, true));
     } else {

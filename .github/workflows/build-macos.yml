@@ -135,6 +135,24 @@ jobs:
       # A self-contained app bundle: macdeployqt copies Qt and every other Homebrew library both
       # programs load into the bundle, then the leftover Homebrew search paths are removed so a
       # machine with Homebrew still uses the bundled copies. Ad-hoc signed, not notarized.
+      # The RenHDrum library is opened at runtime, so nothing links it and macdeployqt cannot
+      # see it either: build it from the pinned release (the same recipe nix/renhdrum.nix uses)
+      # and stage it into the bundle beside the executables, where the loader looks. Upstream
+      # publishes no macOS library of its own.
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Build RenHDrum library
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch v0.5.0 \
+            https://github.com/trzz1214/RenHDrum "$RUNNER_TEMP/renhdrum"
+          cd "$RUNNER_TEMP/renhdrum"
+          cargo build --release --locked
+          built=$(find target -name 'librenhdrum.dylib' -path '*/release/*' -type f | head -1)
+          test -n "$built"
+          install -Dm755 "$built" build/release/bin/librenhdrum.dylib
+
       - name: Package macOS app
         shell: bash
         run: |
@@ -146,6 +164,10 @@ jobs:
             test "$(lipo -archs "$binary")" = arm64
           done
           cp build/release/bin/eden-cli "$app/Contents/MacOS/eden-cli"
+          # The dlopen'd RenHDrum library rides in the bundle beside the executables;
+          # codesign --deep signs it together with the rest.
+          test -f build/release/bin/librenhdrum.dylib
+          cp build/release/bin/librenhdrum.dylib "$app/Contents/MacOS/"
           "$(brew --prefix qt@6)/bin/macdeployqt" "$app" \
             -executable="$app/Contents/MacOS/eden-cli" -libpath="$(brew --prefix)/lib" \
             -always-overwrite -verbose=1

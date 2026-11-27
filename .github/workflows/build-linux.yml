@@ -218,6 +218,22 @@ jobs:
           cmake --build build/release --target yuzu yuzu-cmd --parallel
           ccache --show-stats -vv
 
+      # The RenHDrum library is opened at runtime, so the build does not link it and the
+      # packagers below cannot see it either: build it from the pinned release (the same
+      # recipe nix/renhdrum.nix uses) and stage it next to the executables, where the loader
+      # looks for it (SDL_GetBasePath). Upstream publishes no Linux library of its own.
+      - name: Build RenHDrum
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch v0.5.0 \
+            https://github.com/trzz1214/RenHDrum "$RUNNER_TEMP/renhdrum"
+          cd "$RUNNER_TEMP/renhdrum"
+          cargo build --release --locked
+          built=$(find target -name 'librenhdrum.so' -path '*/release/*' -type f | head -1)
+          test -n "$built"
+          install -Dm755 "$built" build/release/bin/librenhdrum.so
+
       # Plain tar.gz with the two programs. GitHub artifacts drop the executable bit, so a tar is
       # what keeps it. This one is not self-contained: it needs Qt 6 and the usual libraries
       # installed on the system.
@@ -228,8 +244,9 @@ jobs:
           test -x build/release/bin/eglantine
           test -x build/release/bin/eden-cli
           strip build/release/bin/eglantine build/release/bin/eden-cli
+          test -f build/release/bin/librenhdrum.so
           tar -czf "eglantine-${SHA}-${PLATFORM}.tar.gz" \
-            -C build/release/bin eglantine eden-cli
+            -C build/release/bin eglantine eden-cli librenhdrum.so
           ls -la "eglantine-${SHA}-${PLATFORM}.tar.gz"
 
       # A self-contained AppImage: linuxdeploy bundles every library the two programs need except
@@ -272,6 +289,10 @@ jobs:
           export LDAI_OUTPUT="eglantine-${SHA}-${PLATFORM}.AppImage"
           export OUTPUT="$LDAI_OUTPUT"
           export ARCH="$arch"
+          # RenHDrum is dlopen'd, so linuxdeploy cannot discover it as a dependency: staged
+          # beside the executables, where the loader's base-path search finds it
+          mkdir -p AppDir/usr/bin
+          cp build/release/bin/librenhdrum.so AppDir/usr/bin/
           "$tools/linuxdeploy-$arch.AppImage" --appdir AppDir \
             --executable build/release/bin/eglantine \
             --executable build/release/bin/eden-cli \
