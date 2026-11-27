@@ -647,9 +647,10 @@ void ConfigureHdRumble::ShowNoControllerWarning() {
     auto* layout = new QVBoxLayout(&warning);
     auto* text = new QLabel(tr(
         "HD Rumble is a hardware feature: without a compatible controller connected it does "
-        "nothing, and even with one, some games may not always play correctly in edge cases. "
-        "If plain rumble matters more to you than the details, disabling HD Rumble may be "
-        "the better choice."));
+        "nothing. First-party controllers are supported as-is; third-party controllers that "
+        "advertise the same features have been proven to work sometimes, but often need "
+        "tinkering and are never guaranteed. If plain rumble matters more to you than the "
+        "details, disabling HD Rumble may be the better choice."));
     text->setWordWrap(true);
     layout->addWidget(text);
     auto* button = new QPushButton(tr("I understand"));
