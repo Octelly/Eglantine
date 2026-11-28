@@ -170,9 +170,18 @@ ConfigureHdRumble::ConfigureHdRumble(Core::HID::HIDCore& hid_core_, QWidget* par
             &ConfigureHdRumble::RestoreDefaults);
     header->addWidget(defaults_button, 0, Qt::AlignVCenter);
     auto* test = new QPushButton(tr("Test rumble"));
-    test->setIcon(QIcon::fromTheme(QStringLiteral("input-gaming"),
-                                   QApplication::style()->standardIcon(
-                                       QStyle::SP_DialogApplyButton)));
+    // Symbolic first (breeze: input-gamepad-symbolic, Adwaita: input-gaming-symbolic), then
+    // the colour variants, then the style's own icon for themes without any of them (the
+    // Windows and macOS styles never ship the freedesktop names).
+    QIcon test_icon = QApplication::style()->standardIcon(QStyle::SP_DialogApplyButton);
+    for (const auto* name : {"input-gamepad-symbolic", "input-gaming-symbolic",
+                             "input-gamepad", "input-gaming"}) {
+        if (QIcon::hasThemeIcon(QString::fromUtf8(name))) {
+            test_icon = QIcon::fromTheme(QString::fromUtf8(name));
+            break;
+        }
+    }
+    test->setIcon(test_icon);
     connect(test, &QPushButton::clicked, this, &ConfigureHdRumble::TestRumble);
     header->addWidget(test, 0, Qt::AlignVCenter);
     header->addWidget(hd_enabled, 0, Qt::AlignVCenter);
