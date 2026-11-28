@@ -16,8 +16,6 @@
 #include <QHeaderView>
 #include <QLabel>
 #include <QMessageBox>
-#include <QPainter>
-#include <QPainterPath>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QSlider>
@@ -79,24 +77,6 @@ QWidget* MakeCollapsible(const QString& title, QWidget* content, bool open) {
     col->addWidget(head);
     col->addWidget(content);
     return holder;
-}
-
-// The Test rumble button's mark: a short rumble drawn as a wave, in the theme's accent
-QIcon MakeVibrationIcon() {
-    QPixmap pixmap(32, 32);
-    pixmap.fill(Qt::transparent);
-    QPainter painter(&pixmap);
-    painter.setRenderHint(QPainter::Antialiasing);
-    QPen pen(QApplication::palette().color(QPalette::Accent), 3);
-    pen.setCapStyle(Qt::RoundCap);
-    painter.setPen(pen);
-    QPainterPath path;
-    path.moveTo(3, 16);
-    path.cubicTo(7, 4, 10, 4, 13, 16);
-    path.cubicTo(16, 28, 19, 28, 22, 16);
-    path.cubicTo(25, 6, 28, 26, 29, 16);
-    painter.drawPath(path);
-    return QIcon(pixmap);
 }
 
 // The controller table straight from the driver's own device list (RenHDrumDeviceList),
@@ -179,11 +159,15 @@ ConfigureHdRumble::ConfigureHdRumble(Core::HID::HIDCore& hid_core_, QWidget* par
     header->addWidget(title);
     header->addStretch(1);
     auto* defaults_button = new QPushButton(tr("Defaults"));
+    defaults_button->setIcon(
+        QApplication::style()->standardIcon(QStyle::SP_DialogResetButton));
     connect(defaults_button, &QPushButton::clicked, this,
             &ConfigureHdRumble::RestoreDefaults);
     header->addWidget(defaults_button, 0, Qt::AlignVCenter);
     auto* test = new QPushButton(tr("Test rumble"));
-    test->setIcon(MakeVibrationIcon());
+    test->setIcon(QIcon::fromTheme(QStringLiteral("input-gaming"),
+                                   QApplication::style()->standardIcon(
+                                       QStyle::SP_DialogApplyButton)));
     connect(test, &QPushButton::clicked, this, &ConfigureHdRumble::TestRumble);
     header->addWidget(test, 0, Qt::AlignVCenter);
     header->addWidget(hd_enabled, 0, Qt::AlignVCenter);
