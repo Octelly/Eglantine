@@ -131,6 +131,27 @@ std::vector<InputCommon::RenHDrumOption> FallbackRenHDrumOptions() {
 
 namespace InputCommon {
 
+// Declared in renhdrum_pad.h: external linkage on purpose -- the HD Rumble dialog renders
+// this same list, so behavior and display are one claim. Literal IDs: the vendor constants
+// live in the file-local helper namespace below.
+const std::vector<RenHDrumDevice>& RenHDrumDeviceList() {
+    static const std::vector<RenHDrumDevice> devices = {
+        {0x057E, 0x2009, "Nintendo Switch Pro Controller",
+         "HD Rumble (wired and Bluetooth)", RenHDrumDevice::Kind::Switch},
+        {0x057E, 0x2006, "Nintendo Switch Joy-Con (L)",
+         "HD Rumble (wired and Bluetooth)", RenHDrumDevice::Kind::Switch},
+        {0x057E, 0x2007, "Nintendo Switch Joy-Con (R)",
+         "HD Rumble (wired and Bluetooth)", RenHDrumDevice::Kind::Switch},
+        {0x054C, 0x0CE6, "Sony DualSense",
+         "Haptic voice coils, speaker and trigger kick (HD Haptics)",
+         RenHDrumDevice::Kind::DualSense},
+        {0x054C, 0x0DF2, "Sony DualSense Edge",
+         "Haptic voice coils, speaker and trigger kick (HD Haptics)",
+         RenHDrumDevice::Kind::DualSense},
+    };
+    return devices;
+}
+
 namespace {
 
 // The RenHDrum C ABI, resolved from the shared library at runtime: nothing to link, and a build
@@ -307,24 +328,6 @@ Ds5Block HdTriggerBlock(bool is_right, const std::array<Uint8, 11>* effect) {
     Ds5Block block{};
     Api().hd_trigger_block(is_right ? 1 : 0, effect ? effect->data() : nullptr, block.data());
     return block;
-}
-
-const std::vector<RenHDrumDevice>& RenHDrumDeviceList() {
-    static const std::vector<RenHDrumDevice> devices = {
-        {NintendoVendorId, 0x2009, "Nintendo Switch Pro Controller",
-         "HD Rumble (wired and Bluetooth)", RenHDrumDevice::Kind::Switch},
-        {NintendoVendorId, 0x2006, "Nintendo Switch Joy-Con (L)",
-         "HD Rumble (wired and Bluetooth)", RenHDrumDevice::Kind::Switch},
-        {NintendoVendorId, 0x2007, "Nintendo Switch Joy-Con (R)",
-         "HD Rumble (wired and Bluetooth)", RenHDrumDevice::Kind::Switch},
-        {SonyVendorId, 0x0CE6, "Sony DualSense",
-         "Haptic voice coils, speaker and trigger kick (HD Haptics)",
-         RenHDrumDevice::Kind::DualSense},
-        {SonyVendorId, 0x0DF2, "Sony DualSense Edge",
-         "Haptic voice coils, speaker and trigger kick (HD Haptics)",
-         RenHDrumDevice::Kind::DualSense},
-    };
-    return devices;
 }
 
 bool IsSwitchHdController(Uint16 vid, Uint16 pid) {
@@ -1793,8 +1796,16 @@ bool GetRenHDrumXboxNeedsRawInput() {
     return false;
 }
 
+const std::vector<RenHDrumDevice>& RenHDrumDeviceList() {
+    static const std::vector<RenHDrumDevice> no_devices = {};
+    return no_devices;
+}
+
 std::vector<RenHDrumOption> GetRenHDrumOptions() {
-    return FallbackRenHDrumOptions();
+    // The engine half's fallback table is not compiled in here; with the support off the
+    // dialog is unreachable anyway (the Vibration tab hides its button), so an empty table
+    // is honest.
+    return {};
 }
 
 struct RenHDrumPad::Impl {};
