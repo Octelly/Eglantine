@@ -115,6 +115,11 @@ void ShowSupportedHardware(QWidget* parent) {
         "controller the motors."));
     note->setWordWrap(true);
     layout->addWidget(note);
+    auto* asterisk = new QLabel(QObject::tr(
+        "* Nintendo Switch here is the first console's hardware; Nintendo Switch 2 "
+        "controllers are their own thing and are not on this list."));
+    asterisk->setWordWrap(true);
+    layout->addWidget(asterisk);
     auto* close = new QPushButton(QObject::tr("Close"));
     QObject::connect(close, &QPushButton::clicked, &dialog, &QDialog::accept);
     layout->addWidget(close, 0, Qt::AlignRight);
