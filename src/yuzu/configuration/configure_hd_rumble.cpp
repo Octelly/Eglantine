@@ -765,7 +765,16 @@ void ConfigureHdRumble::ShowNoControllerWarning() {
 
     QDialog warning(this);
     warning.setWindowTitle(tr("HD Rumble needs hardware"));
-    auto* layout = new QVBoxLayout(&warning);
+    // The classic warning-dialog anatomy every platform uses: the severity icon left of the
+    // text, and one bottom row of buttons
+    auto* outer = new QVBoxLayout(&warning);
+    auto* top = new QHBoxLayout;
+    top->setSpacing(12);
+    auto* icon_label = new QLabel;
+    icon_label->setPixmap(
+        warning.style()->standardIcon(QStyle::SP_MessageBoxWarning).pixmap(32, 32));
+    icon_label->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
+    top->addWidget(icon_label, 0, Qt::AlignTop);
     auto* text = new QLabel(tr(
         "HD Rumble is a hardware feature: without a compatible controller connected it does "
         "nothing. First-party controllers are supported as-is; third-party controllers that "
@@ -773,20 +782,25 @@ void ConfigureHdRumble::ShowNoControllerWarning() {
         "tinkering and are never guaranteed. If plain rumble matters more to you than the "
         "details, disabling HD Rumble may be the better choice."));
     text->setWordWrap(true);
-    layout->addWidget(text);
+    top->addWidget(text, 1);
+    outer->addLayout(top);
+
+    auto* bottom = new QHBoxLayout;
+    auto* hardware_button =
+        new QPushButton(warning.style()->standardIcon(QStyle::SP_MessageBoxInformation),
+                        tr("Supported hardware"));
+    connect(hardware_button, &QPushButton::clicked, &warning, [parent = &warning]() {
+        ShowSupportedHardware(parent);
+    });
+    bottom->addWidget(hardware_button);
+    bottom->addStretch();
     auto* button = new QPushButton(tr("I understand"));
     button->setEnabled(countdown == 0);
     if (countdown > 0) {
         button->setText(tr("I understand (%1)").arg(countdown));
     }
-    auto* hardware_button =
-        new QPushButton(QApplication::style()->standardIcon(QStyle::SP_MessageBoxInformation),
-                        tr("Supported hardware"));
-    connect(hardware_button, &QPushButton::clicked, &warning, [parent = &warning]() {
-        ShowSupportedHardware(parent);
-    });
-    layout->addWidget(hardware_button, 0, Qt::AlignLeft);
-    layout->addWidget(button, 0, Qt::AlignRight);
+    bottom->addWidget(button);
+    outer->addLayout(bottom);
     connect(button, &QPushButton::clicked, &warning, &QDialog::accept);
 
     if (countdown > 0) {
