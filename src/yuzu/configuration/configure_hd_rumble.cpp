@@ -48,6 +48,44 @@ QLabel* MakeNote(const QString& text) {
     return label;
 }
 
+// The closest QWidget relative of KMessageWidget without pulling in KDE Frameworks: the
+// severity shows through the platform's own message-box icons, and the background is
+// blended from the live palette so the callout follows whatever theme is in use.
+QFrame* MakeCallout(QMessageBox::Icon kind, const QString& text) {
+    const QStyle* style = QApplication::style();
+    const QIcon icon = style->standardIcon(
+        kind == QMessageBox::Warning    ? QStyle::SP_MessageBoxWarning
+        : kind == QMessageBox::Critical ? QStyle::SP_MessageBoxCritical
+                                        : QStyle::SP_MessageBoxInformation);
+    const QPalette pal = QApplication::palette();
+    const QColor window_c = pal.color(QPalette::Window);
+    const QColor base_c = pal.color(QPalette::Base);
+    // A subtle inset between the window and its base, outlined by the Mid role
+    const QColor tint((window_c.red() + base_c.red()) / 2,
+                      (window_c.green() + base_c.green()) / 2,
+                      (window_c.blue() + base_c.blue()) / 2);
+    auto* frame = new QFrame;
+    frame->setFrameShape(QFrame::StyledPanel);
+    frame->setStyleSheet(QStringLiteral(
+                            "QFrame { background: %1; border: 1px solid %2; "
+                            "border-radius: 4px; }")
+                            .arg(tint.name(), pal.color(QPalette::Mid).name(QColor::HexArgb)));
+    auto* row = new QHBoxLayout(frame);
+    row->setContentsMargins(8, 6, 8, 6);
+    row->setSpacing(8);
+    auto* icon_label = new QLabel;
+    icon_label->setPixmap(icon.pixmap(16, 16));
+    icon_label->setFixedWidth(16);
+    icon_label->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
+    row->addWidget(icon_label, 0, Qt::AlignTop);
+    auto* label = new QLabel(text);
+    label->setWordWrap(true);
+    // the frame's stylesheet would cascade onto the label (QLabel is a QFrame)
+    label->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
+    row->addWidget(label, 1);
+    return frame;
+}
+
 QFrame* MakeDivider() {
     auto* divider = new QFrame;
     divider->setFrameShape(QFrame::HLine);
@@ -208,6 +246,11 @@ ConfigureHdRumble::ConfigureHdRumble(Core::HID::HIDCore& hid_core_, QWidget* par
     auto* body_col = new QVBoxLayout(body);
     body_col->setContentsMargins(0, 0, 0, 0);
     body_col->setSpacing(10);
+    body_col->addWidget(MakeCallout(
+        QMessageBox::Warning,
+        tr("A third-party controller's PS5 / Switch / Xbox mode only says which protocol it "
+           "speaks: it does not mean the pad carries the hardware this feature drives. The "
+           "mode makes the emulator try; the motors have to be there.")));
     body_col->addWidget(MakeNote(
         tr("While HD Rumble is on, the \"Enable Accurate Vibration\" filter in the vibration "
            "dialog is bypassed: this engine paces the 5 ms packets itself, and the 15 ms filter "
@@ -235,8 +278,10 @@ ConfigureHdRumble::ConfigureHdRumble(Core::HID::HIDCore& hid_core_, QWidget* par
     if (active != 0u) {
         body_col->addWidget(CreateDeviceCard(active, true));
     } else {
-        body_col->addWidget(MakeNote(tr("No compatible controller detected. Connect a compatible "
-                                        "controller to use this feature.")));
+        body_col->addWidget(MakeCallout(
+            QMessageBox::Information,
+            tr("No compatible controller detected. Connect a compatible controller to use "
+               "this feature.")));
         // Once per launch: the first open of this dialog without a compatible controller
         // gets the hardware warning, however many times the dialog opens this launch
         static bool warned_this_launch = false;
