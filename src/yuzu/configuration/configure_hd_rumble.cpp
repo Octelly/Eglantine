@@ -53,23 +53,21 @@ QLabel* MakeNote(const QString& text) {
 // blended from the live palette so the callout follows whatever theme is in use.
 QFrame* MakeCallout(QMessageBox::Icon kind, const QString& text) {
     const QStyle* style = QApplication::style();
-    const QIcon icon = style->standardIcon(
-        kind == QMessageBox::Warning    ? QStyle::SP_MessageBoxWarning
-        : kind == QMessageBox::Critical ? QStyle::SP_MessageBoxCritical
-                                        : QStyle::SP_MessageBoxInformation);
+    const QIcon icon =
+        style->standardIcon(kind == QMessageBox::Warning    ? QStyle::SP_MessageBoxWarning
+                            : kind == QMessageBox::Critical ? QStyle::SP_MessageBoxCritical
+                                                            : QStyle::SP_MessageBoxInformation);
     const QPalette pal = QApplication::palette();
     const QColor window_c = pal.color(QPalette::Window);
     const QColor base_c = pal.color(QPalette::Base);
     // A subtle inset between the window and its base, outlined by the Mid role
-    const QColor tint((window_c.red() + base_c.red()) / 2,
-                      (window_c.green() + base_c.green()) / 2,
+    const QColor tint((window_c.red() + base_c.red()) / 2, (window_c.green() + base_c.green()) / 2,
                       (window_c.blue() + base_c.blue()) / 2);
     auto* frame = new QFrame;
     frame->setFrameShape(QFrame::StyledPanel);
-    frame->setStyleSheet(QStringLiteral(
-                            "QFrame { background: %1; border: 1px solid %2; "
-                            "border-radius: 4px; }")
-                            .arg(tint.name(), pal.color(QPalette::Mid).name(QColor::HexArgb)));
+    frame->setStyleSheet(QStringLiteral("QFrame { background: %1; border: 1px solid %2; "
+                                        "border-radius: 4px; }")
+                             .arg(tint.name(), pal.color(QPalette::Mid).name(QColor::HexArgb)));
     auto* row = new QHBoxLayout(frame);
     row->setContentsMargins(8, 6, 8, 6);
     row->setSpacing(8);
@@ -125,8 +123,8 @@ void ShowSupportedHardware(QWidget* parent) {
     auto* layout = new QVBoxLayout(&dialog);
     const auto& devices = InputCommon::RenHDrumDeviceList();
     auto* table = new QTableWidget(static_cast<int>(devices.size()) + 1, 3, &dialog);
-    table->setHorizontalHeaderLabels({QObject::tr("VID:PID"), QObject::tr("Controller"),
-                                      QObject::tr("Supported features")});
+    table->setHorizontalHeaderLabels(
+        {QObject::tr("VID:PID"), QObject::tr("Controller"), QObject::tr("Supported features")});
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     table->setSelectionMode(QAbstractItemView::NoSelection);
     table->verticalHeader()->setVisible(false);
@@ -137,9 +135,10 @@ void ShowSupportedHardware(QWidget* parent) {
     table->setAlternatingRowColors(true);
     for (int i = 0; i < static_cast<int>(devices.size()); ++i) {
         const auto& device = devices[static_cast<std::size_t>(i)];
-        table->setItem(i, 0, new QTableWidgetItem(QStringLiteral("%1:%2")
-            .arg(device.vendor_id, 4, 16, QLatin1Char('0'))
-            .arg(device.product_id, 4, 16, QLatin1Char('0'))));
+        table->setItem(i, 0,
+                       new QTableWidgetItem(QStringLiteral("%1:%2")
+                                                .arg(device.vendor_id, 4, 16, QLatin1Char('0'))
+                                                .arg(device.product_id, 4, 16, QLatin1Char('0'))));
         table->setItem(i, 1, new QTableWidgetItem(QString::fromUtf8(device.official_name)));
         table->setItem(i, 2, new QTableWidgetItem(QString::fromUtf8(device.features)));
     }
@@ -147,8 +146,9 @@ void ShowSupportedHardware(QWidget* parent) {
     table->setItem(last_row, 0, new QTableWidgetItem(QObject::tr("any")));
     table->setItem(last_row, 1,
                    new QTableWidgetItem(QObject::tr("Xbox-style controllers (XInput)")));
-    table->setItem(last_row, 2, new QTableWidgetItem(
-        QObject::tr("Motor drive (Direct or the RenHDrum translation)")));
+    table->setItem(
+        last_row, 2,
+        new QTableWidgetItem(QObject::tr("Motor drive (Direct or the RenHDrum translation)")));
     layout->addWidget(table);
     auto* note = new QLabel(QObject::tr(
         "Third-party controllers that advertise a compatible mode still need the appropriate "
@@ -156,9 +156,9 @@ void ShowSupportedHardware(QWidget* parent) {
         "controller the motors."));
     note->setWordWrap(true);
     layout->addWidget(note);
-    auto* asterisk = MakeNote(QObject::tr(
-        "<i>* Nintendo Switch here is the first console's hardware; Nintendo Switch 2 "
-        "controllers are their own thing and are not on this list.</i>"));
+    auto* asterisk = MakeNote(
+        QObject::tr("<i>* Nintendo Switch here is the first console's hardware; Nintendo Switch 2 "
+                    "controllers are their own thing and are not on this list.</i>"));
     asterisk->setContentsMargins(0, 4, 0, 0);
     layout->addWidget(asterisk);
     auto* close = new QPushButton(QObject::tr("Close"));
@@ -205,18 +205,16 @@ ConfigureHdRumble::ConfigureHdRumble(Core::HID::HIDCore& hid_core_, QWidget* par
     header->addWidget(title);
     header->addStretch(1);
     auto* defaults_button = new QPushButton(tr("Defaults"));
-    defaults_button->setIcon(
-        QApplication::style()->standardIcon(QStyle::SP_DialogResetButton));
-    connect(defaults_button, &QPushButton::clicked, this,
-            &ConfigureHdRumble::RestoreDefaults);
+    defaults_button->setIcon(QApplication::style()->standardIcon(QStyle::SP_DialogResetButton));
+    connect(defaults_button, &QPushButton::clicked, this, &ConfigureHdRumble::RestoreDefaults);
     header->addWidget(defaults_button, 0, Qt::AlignVCenter);
     auto* test = new QPushButton(tr("Test rumble"));
     // Symbolic first (breeze: input-gamepad-symbolic, Adwaita: input-gaming-symbolic), then
     // the colour variants, then the style's own icon for themes without any of them (the
     // Windows and macOS styles never ship the freedesktop names).
     QIcon test_icon = QApplication::style()->standardIcon(QStyle::SP_DialogApplyButton);
-    for (const auto* name : {"input-gamepad-symbolic", "input-gaming-symbolic",
-                             "input-gamepad", "input-gaming"}) {
+    for (const auto* name :
+         {"input-gamepad-symbolic", "input-gaming-symbolic", "input-gamepad", "input-gaming"}) {
         if (QIcon::hasThemeIcon(QString::fromUtf8(name))) {
             test_icon = QIcon::fromTheme(QString::fromUtf8(name));
             break;
@@ -255,10 +253,6 @@ ConfigureHdRumble::ConfigureHdRumble(Core::HID::HIDCore& hid_core_, QWidget* par
         tr("While HD Rumble is on, the \"Enable Accurate Vibration\" filter in the vibration "
            "dialog is bypassed: this engine paces the 5 ms packets itself, and the 15 ms filter "
            "would drop the short ticks Switch 2 games send.")));
-    const bool per_game = !Settings::values.hd_rumble_gain.UsingGlobal();
-    body_col->addWidget(MakeNote(
-        per_game ? tr("Intensity: this game has its own value, and changes here apply to it.")
-                 : tr("Intensity multiplies the game's rumble.")));
 #ifdef _WIN32
     const QString library_names =
         tr("<b>renhdrum.dll</b> (Linux: librenhdrum.so, macOS: librenhdrum.dylib)");
@@ -270,11 +264,6 @@ ConfigureHdRumble::ConfigureHdRumble(Core::HID::HIDCore& hid_core_, QWidget* par
     const QString library_names =
         tr("<b>librenhdrum.so</b> (Windows: renhdrum.dll, macOS: librenhdrum.dylib)");
 #endif
-    body_col->addWidget(MakeNote(
-        tr("Eglantine bundles RenHDrum on its own. You can supply your own build: point the "
-           "RENHDRUM_LIBRARY environment variable at it, or drop it next to the emulator as "
-           "%1. Use a build from the same release, or the settings may not line up.")
-            .arg(library_names)));
     if (active != 0u) {
         body_col->addWidget(CreateDeviceCard(active, true));
     } else {
@@ -303,8 +292,10 @@ ConfigureHdRumble::ConfigureHdRumble(Core::HID::HIDCore& hid_core_, QWidget* par
     }
     body_col->addWidget(MakeCollapsible(tr("Other controllers"), others_host, false));
     body_col->addWidget(MakeNote(
-        tr("Changes reach connected controllers on their next vibration. To feel them now, "
-           "open the Vibration settings and hold a button on the controller.")));
+        tr("Eglantine bundles RenHDrum on its own. You can supply your own build by pointing the "
+           "RENHDRUM_LIBRARY environment variable at it, or by dropping it next to the emulator as "
+           "%1. Using a different version of the library may make the settings not line up.")
+            .arg(library_names)));
     body_col->addStretch(1);
 
     auto* scroll = new QScrollArea;
@@ -325,9 +316,7 @@ ConfigureHdRumble::ConfigureHdRumble(Core::HID::HIDCore& hid_core_, QWidget* par
     auto* hardware_button =
         new QPushButton(QApplication::style()->standardIcon(QStyle::SP_MessageBoxInformation),
                         tr("Supported hardware"));
-    connect(hardware_button, &QPushButton::clicked, this, [this] {
-        ShowSupportedHardware(this);
-    });
+    connect(hardware_button, &QPushButton::clicked, this, [this] { ShowSupportedHardware(this); });
     footer->addWidget(hardware_button);
     footer->addWidget(credit);
     footer->addStretch();
@@ -764,7 +753,7 @@ void ConfigureHdRumble::ShowNoControllerWarning() {
     const int countdown = seen == 0 ? 10 : seen == 1 ? 5 : 0;
 
     QDialog warning(this);
-    warning.setWindowTitle(tr("HD Rumble needs hardware"));
+    warning.setWindowTitle(tr("No HD Rumble compatible controller detected"));
     // The classic warning-dialog anatomy every platform uses: the severity icon left of the
     // text, and one bottom row of buttons
     auto* outer = new QVBoxLayout(&warning);
@@ -775,23 +764,24 @@ void ConfigureHdRumble::ShowNoControllerWarning() {
         warning.style()->standardIcon(QStyle::SP_MessageBoxWarning).pixmap(32, 32));
     icon_label->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
     top->addWidget(icon_label, 0, Qt::AlignTop);
-    auto* text = new QLabel(tr(
-        "HD Rumble is a hardware feature: without a compatible controller connected it does "
-        "nothing. First-party controllers are supported as-is; third-party controllers that "
-        "advertise the same features have been proven to work sometimes, but often need "
-        "tinkering and are never guaranteed. If plain rumble matters more to you than the "
-        "details, disabling HD Rumble may be the better choice."));
+    auto* text =
+        new QLabel(tr("No compatible controller was detected. HD Rumble needs a controller with "
+                      "the appropriate HD Rumble (or equivalent) hardware to work. 3rd-party "
+                      "controllers may work if you switch them to the correct mode, but may still "
+                      "lack the ability to reproduce accurate fidelity."
+                      "\n"
+                      "This is a hardware-dependent feature! Check with your controller's "
+                      "manufacturer to see if it supports HD Rumble or one of its equivalents. "
+                      "Only 1st-party hardware is officially supported."));
     text->setWordWrap(true);
     top->addWidget(text, 1);
     outer->addLayout(top);
 
     auto* bottom = new QHBoxLayout;
-    auto* hardware_button =
-        new QPushButton(warning.style()->standardIcon(QStyle::SP_MessageBoxInformation),
-                        tr("Supported hardware"));
-    connect(hardware_button, &QPushButton::clicked, &warning, [parent = &warning]() {
-        ShowSupportedHardware(parent);
-    });
+    auto* hardware_button = new QPushButton(
+        warning.style()->standardIcon(QStyle::SP_MessageBoxInformation), tr("Supported hardware"));
+    connect(hardware_button, &QPushButton::clicked, &warning,
+            [parent = &warning]() { ShowSupportedHardware(parent); });
     bottom->addWidget(hardware_button);
     bottom->addStretch();
     auto* button = new QPushButton(tr("I understand"));
@@ -880,9 +870,9 @@ void ConfigureHdRumble::TestRumble() {
         for (std::size_t i = 0; i < Settings::values.players.GetValue().size(); ++i) {
             auto controller = hid_core.GetEmulatedControllerByIndex(static_cast<int>(i));
             controller->SetVibration(Core::HID::DeviceIndex::Left,
-                                      Core::HID::DEFAULT_VIBRATION_VALUE);
+                                     Core::HID::DEFAULT_VIBRATION_VALUE);
             controller->SetVibration(Core::HID::DeviceIndex::Right,
-                                      Core::HID::DEFAULT_VIBRATION_VALUE);
+                                     Core::HID::DEFAULT_VIBRATION_VALUE);
         }
     };
 
