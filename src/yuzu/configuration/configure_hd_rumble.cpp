@@ -92,6 +92,9 @@ void ShowSupportedHardware(QWidget* parent) {
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     table->setSelectionMode(QAbstractItemView::NoSelection);
     table->verticalHeader()->setVisible(false);
+    // IDs and names fit their contents; the features column takes the rest
+    table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
     table->horizontalHeader()->setStretchLastSection(true);
     table->setAlternatingRowColors(true);
     for (int i = 0; i < static_cast<int>(devices.size()); ++i) {
