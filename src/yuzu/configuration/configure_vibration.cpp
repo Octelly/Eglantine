@@ -50,6 +50,23 @@ ConfigureVibration::ConfigureVibration(QWidget* parent, Core::HID::HIDCore& hid_
         ui->checkBoxAccurateVibration->setDisabled(true);
     }
 
+    // Two rumble worlds with a selector between them: the accurate-vibration filter only
+    // ever shaped the regular path, so it lives visibly inside the regular side where its
+    // effect is, and nothing on the HD side claims otherwise.
+    auto* rumble_tabs = new QTabWidget;
+    auto* regular_page = new QWidget;
+    auto* regular_col = new QVBoxLayout(regular_page);
+    regular_col->addWidget(ui->vibrationStrengthGroup);
+    regular_col->addWidget(ui->checkBoxAccurateVibration);
+    regular_col->addStretch();
+    auto* hd_page = new QWidget;
+    auto* hd_col = new QVBoxLayout(hd_page);
+    hd_col->setSpacing(6);
+    rumble_tabs->addTab(regular_page, tr("Regular rumble"));
+    rumble_tabs->addTab(hd_page, tr("HD rumble"));
+    ui->verticalLayout->addWidget(rumble_tabs);
+    ui->verticalLayout->addStretch();
+
     auto* hd_rumble_button = new QPushButton(tr("HD Rumble..."));
     hd_rumble_button->setToolTip(
         tr("HD Rumble for Pro Controller / Joy-Con and DualSense haptics (RenHDrum)."));
@@ -59,7 +76,7 @@ ConfigureVibration::ConfigureVibration(QWidget* parent, Core::HID::HIDCore& hid_
             dialog.ApplyConfiguration();
         }
     });
-    ui->verticalLayout->addWidget(hd_rumble_button);
+    hd_col->addWidget(hd_rumble_button);
     hd_rumble_button->setVisible(InputCommon::IsRenHDrumBuilt());
 
     auto* reset_warning_button = new QPushButton(tr("Reset RenHDrum warning"));
@@ -72,7 +89,7 @@ ConfigureVibration::ConfigureVibration(QWidget* parent, Core::HID::HIDCore& hid_
         Settings::values.hd_rumble_warn_count.SetValue(0);
         reset_warning_button->setEnabled(false);
     });
-    ui->verticalLayout->addWidget(reset_warning_button);
+    hd_col->addWidget(reset_warning_button);
     reset_warning_button->setVisible(InputCommon::IsRenHDrumBuilt());
 
     // The 15 ms packet filter above is bypassed while HD Rumble is on (renhdrum_pad paces the
@@ -83,9 +100,9 @@ ConfigureVibration::ConfigureVibration(QWidget* parent, Core::HID::HIDCore& hid_
                "Otherwise, off drops vibrations that arrive less than 15 ms apart."));
         auto* hd_rumble_note = new QLabel(tr(
             "HD Rumble paces packets itself, so \"Enable Accurate Vibration\" is bypassed while "
-            "HD Rumble is on."));
+            "HD Rumble is on. That filter and its checkbox live on the Regular rumble side."));
         hd_rumble_note->setWordWrap(true);
-        ui->verticalLayout->addWidget(hd_rumble_note);
+        hd_col->addWidget(hd_rumble_note);
     }
 
     RetranslateUI();

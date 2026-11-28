@@ -45,6 +45,8 @@ QLabel* MakeNote(const QString& text) {
                        (text_c.green() * 3 + back_c.green()) / 4,
                        (text_c.blue() * 3 + back_c.blue()) / 4);
     label->setStyleSheet(QStringLiteral("color: %1;").arg(muted.name(QColor::HexArgb)));
+    // Paths and variable names are things a user copies
+    label->setTextInteractionFlags(Qt::TextSelectableByMouse);
     return label;
 }
 
@@ -293,8 +295,9 @@ ConfigureHdRumble::ConfigureHdRumble(Core::HID::HIDCore& hid_core_, QWidget* par
     body_col->addWidget(MakeCollapsible(tr("Other controllers"), others_host, false));
     body_col->addWidget(MakeNote(
         tr("Eglantine bundles RenHDrum on its own. You can supply your own build by pointing the "
-           "RENHDRUM_LIBRARY environment variable at it, or by dropping it next to the emulator as "
-           "%1. Using a different version of the library may make the settings not line up.")
+           "<code>RENHDRUM_LIBRARY</code> environment variable at it, or by dropping it next to the "
+           "emulator as %1. Using a different version of the library may make the settings not "
+           "line up.")
             .arg(library_names)));
     body_col->addStretch(1);
 
