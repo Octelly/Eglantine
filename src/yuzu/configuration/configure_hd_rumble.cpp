@@ -8,18 +8,23 @@
 
 #include <QApplication>
 #include <QCheckBox>
-#include <QTimer>
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFont>
 #include <QFrame>
 #include <QHBoxLayout>
+#include <QHeaderView>
 #include <QLabel>
 #include <QMessageBox>
+#include <QPainter>
+#include <QPainterPath>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QSlider>
 #include <QSpinBox>
+#include <QStyle>
+#include <QTableWidget>
+#include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -76,6 +81,67 @@ QWidget* MakeCollapsible(const QString& title, QWidget* content, bool open) {
     return holder;
 }
 
+// The Test rumble button's mark: a short rumble drawn as a wave, in the theme's accent
+QIcon MakeVibrationIcon() {
+    QPixmap pixmap(32, 32);
+    pixmap.fill(Qt::transparent);
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing);
+    QPen pen(QApplication::palette().color(QPalette::Accent), 3);
+    pen.setCapStyle(Qt::RoundCap);
+    painter.setPen(pen);
+    QPainterPath path;
+    path.moveTo(3, 16);
+    path.cubicTo(7, 4, 10, 4, 13, 16);
+    path.cubicTo(16, 28, 19, 28, 22, 16);
+    path.cubicTo(25, 6, 28, 26, 29, 16);
+    painter.drawPath(path);
+    return QIcon(pixmap);
+}
+
+// The controller table straight from the driver's own device list (RenHDrumDeviceList),
+// plus the XInput catch-all row; the third-party caveat at the bottom.
+void ShowSupportedHardware(QWidget* parent) {
+    QDialog dialog(parent);
+    dialog.setWindowTitle(QObject::tr("Supported Hardware"));
+    auto* layout = new QVBoxLayout(&dialog);
+    const auto& devices = InputCommon::RenHDrumDeviceList();
+    auto* table = new QTableWidget(static_cast<int>(devices.size()) + 1, 3, &dialog);
+    table->setHorizontalHeaderLabels({QObject::tr("VID:PID"), QObject::tr("Controller"),
+                                      QObject::tr("Supported features")});
+    table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    table->setSelectionMode(QAbstractItemView::NoSelection);
+    table->verticalHeader()->setVisible(false);
+    table->horizontalHeader()->setStretchLastSection(true);
+    table->setAlternatingRowColors(true);
+    for (int i = 0; i < static_cast<int>(devices.size()); ++i) {
+        const auto& device = devices[static_cast<std::size_t>(i)];
+        table->setItem(i, 0, new QTableWidgetItem(QStringLiteral("%1:%2")
+            .arg(device.vendor_id, 4, 16, QLatin1Char('0'))
+            .arg(device.product_id, 4, 16, QLatin1Char('0'))));
+        table->setItem(i, 1, new QTableWidgetItem(QString::fromUtf8(device.official_name)));
+        table->setItem(i, 2, new QTableWidgetItem(QString::fromUtf8(device.features)));
+    }
+    const int last_row = static_cast<int>(devices.size());
+    table->setItem(last_row, 0, new QTableWidgetItem(QObject::tr("any")));
+    table->setItem(last_row, 1,
+                   new QTableWidgetItem(QObject::tr("Xbox-style controllers (XInput)")));
+    table->setItem(last_row, 2, new QTableWidgetItem(
+        QObject::tr("Motor drive (Direct or the RenHDrum translation)")));
+    layout->addWidget(table);
+    auto* note = new QLabel(QObject::tr(
+        "Third-party controllers that advertise a compatible mode still need the appropriate "
+        "hardware inside: the compatible mode makes the emulator try, it does not give the "
+        "controller the motors."));
+    note->setWordWrap(true);
+    layout->addWidget(note);
+    auto* close = new QPushButton(QObject::tr("Close"));
+    QObject::connect(close, &QPushButton::clicked, &dialog, &QDialog::accept);
+    layout->addWidget(close, 0, Qt::AlignRight);
+    dialog.resize(620, 340);
+    dialog.exec();
+}
+
 QString DeviceTitle(unsigned device) {
     switch (device) {
     case 1u:
@@ -91,7 +157,7 @@ QString DeviceTitle(unsigned device) {
 
 ConfigureHdRumble::ConfigureHdRumble(Core::HID::HIDCore& hid_core_, QWidget* parent)
     : QDialog(parent), hid_core{hid_core_} {
-    setWindowTitle(tr("HD Rumble"));
+    setWindowTitle(tr("HD Rumble (RenHDrum)"));
     setMinimumSize(560, 480);
 
     auto* root = new QVBoxLayout(this);
@@ -112,7 +178,12 @@ ConfigureHdRumble::ConfigureHdRumble(Core::HID::HIDCore& hid_core_, QWidget* par
     hd_enabled->setToolTip(tr("Off: the controllers use the emulator's standard rumble."));
     header->addWidget(title);
     header->addStretch(1);
+    auto* defaults_button = new QPushButton(tr("Defaults"));
+    connect(defaults_button, &QPushButton::clicked, this,
+            &ConfigureHdRumble::RestoreDefaults);
+    header->addWidget(defaults_button, 0, Qt::AlignVCenter);
     auto* test = new QPushButton(tr("Test rumble"));
+    test->setIcon(MakeVibrationIcon());
     connect(test, &QPushButton::clicked, this, &ConfigureHdRumble::TestRumble);
     header->addWidget(test, 0, Qt::AlignVCenter);
     header->addWidget(hd_enabled, 0, Qt::AlignVCenter);
@@ -202,12 +273,16 @@ ConfigureHdRumble::ConfigureHdRumble(Core::HID::HIDCore& hid_core_, QWidget* par
     auto* credit =
         new QLabel(tr("<a href=\"https://github.com/trzz1214/RenHDrum\">Powered by RenHDrum</a>"));
     credit->setOpenExternalLinks(true);
-    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel |
-                                         QDialogButtonBox::RestoreDefaults);
+    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
-    connect(buttons->button(QDialogButtonBox::RestoreDefaults), &QPushButton::clicked, this,
-            &ConfigureHdRumble::RestoreDefaults);
+    auto* hardware_button =
+        new QPushButton(QApplication::style()->standardIcon(QStyle::SP_MessageBoxInformation),
+                        tr("Supported hardware"));
+    connect(hardware_button, &QPushButton::clicked, this, [this] {
+        ShowSupportedHardware(this);
+    });
+    footer->addWidget(hardware_button);
     footer->addWidget(credit);
     footer->addStretch();
     footer->addWidget(buttons);
@@ -658,6 +733,13 @@ void ConfigureHdRumble::ShowNoControllerWarning() {
     if (countdown > 0) {
         button->setText(tr("I understand (%1)").arg(countdown));
     }
+    auto* hardware_button =
+        new QPushButton(QApplication::style()->standardIcon(QStyle::SP_MessageBoxInformation),
+                        tr("Supported hardware"));
+    connect(hardware_button, &QPushButton::clicked, &warning, [parent = &warning]() {
+        ShowSupportedHardware(parent);
+    });
+    layout->addWidget(hardware_button, 0, Qt::AlignLeft);
     layout->addWidget(button, 0, Qt::AlignRight);
     connect(button, &QPushButton::clicked, &warning, &QDialog::accept);
 

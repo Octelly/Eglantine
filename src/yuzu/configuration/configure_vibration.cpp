@@ -59,8 +59,18 @@ ConfigureVibration::ConfigureVibration(QWidget* parent, Core::HID::HIDCore& hid_
             dialog.ApplyConfiguration();
         }
     });
-    ui->verticalLayout->addWidget(hd_rumble_button);
-    hd_rumble_button->setVisible(InputCommon::IsRenHDrumBuilt());
+    auto* reset_warning_button = new QPushButton(tr("Reset RenHDrum warning"));
+    reset_warning_button->setToolTip(tr(
+        "The no-controller warning counts down 10 s the first time it is acknowledged and "
+        "5 s the second; resetting brings the long countdown back."));
+    reset_warning_button->setEnabled(
+        Settings::values.hd_rumble_warn_count.GetValue() != 0);
+    connect(reset_warning_button, &QPushButton::clicked, this, [reset_warning_button] {
+        Settings::values.hd_rumble_warn_count.SetValue(0);
+        reset_warning_button->setEnabled(false);
+    });
+    ui->verticalLayout->addWidget(reset_warning_button);
+    reset_warning_button->setVisible(InputCommon::IsRenHDrumBuilt());
 
     // The 15 ms packet filter above is bypassed while HD Rumble is on (renhdrum_pad paces the
     // packets itself), so say so where the checkbox is, not only in the HD Rumble dialog.

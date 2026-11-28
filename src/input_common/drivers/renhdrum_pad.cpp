@@ -309,8 +309,30 @@ Ds5Block HdTriggerBlock(bool is_right, const std::array<Uint8, 11>* effect) {
     return block;
 }
 
+const std::vector<RenHDrumDevice>& RenHDrumDeviceList() {
+    static const std::vector<RenHDrumDevice> devices = {
+        {NintendoVendorId, 0x2009, "Nintendo Switch Pro Controller",
+         "HD Rumble (wired and Bluetooth)", RenHDrumDevice::Kind::Switch},
+        {NintendoVendorId, 0x2006, "Nintendo Switch Joy-Con (L)",
+         "HD Rumble (wired and Bluetooth)", RenHDrumDevice::Kind::Switch},
+        {NintendoVendorId, 0x2007, "Nintendo Switch Joy-Con (R)",
+         "HD Rumble (wired and Bluetooth)", RenHDrumDevice::Kind::Switch},
+        {SonyVendorId, 0x0CE6, "Sony DualSense",
+         "Haptic voice coils, speaker and trigger kick (HD Haptics)",
+         RenHDrumDevice::Kind::DualSense},
+        {SonyVendorId, 0x0DF2, "Sony DualSense Edge",
+         "Haptic voice coils, speaker and trigger kick (HD Haptics)",
+         RenHDrumDevice::Kind::DualSense},
+    };
+    return devices;
+}
+
 bool IsSwitchHdController(Uint16 vid, Uint16 pid) {
-    return vid == NintendoVendorId && (pid == 0x2009 || pid == 0x2006 || pid == 0x2007);
+    return std::any_of(RenHDrumDeviceList().begin(), RenHDrumDeviceList().end(),
+                       [&](const RenHDrumDevice& device) {
+                           return device.kind == RenHDrumDevice::Kind::Switch &&
+                                  device.vendor_id == vid && device.product_id == pid;
+                       });
 }
 
 /// Xbox One / Series and Xbox 360 style pads, Microsoft's or not (GameSir, 8BitDo, PowerA...).
@@ -337,7 +359,11 @@ bool IsXboxStyle(SDL_Joystick* joystick, SDL_Gamepad* gamepad) {
 }
 
 bool IsDualSense(Uint16 vid, Uint16 pid) {
-    return vid == SonyVendorId && (pid == 0x0CE6 || pid == 0x0DF2);
+    return std::any_of(RenHDrumDeviceList().begin(), RenHDrumDeviceList().end(),
+                       [&](const RenHDrumDevice& device) {
+                           return device.kind == RenHDrumDevice::Kind::DualSense &&
+                                  device.vendor_id == vid && device.product_id == pid;
+                       });
 }
 
 struct UserSettings {

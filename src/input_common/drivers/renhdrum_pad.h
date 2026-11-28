@@ -89,4 +89,20 @@ private:
     std::unique_ptr<Impl> impl;
 };
 
+/// The pads the engine's controller matching claims, and what it plays through them. This
+/// is the single list: the pad driver matches against it and the HD Rumble dialog renders
+/// it, so behavior and display cannot drift apart. RenHDrum 0.5.0 does not export a device
+/// table of its own; until one exists, this mirrors the engine's own controller matching.
+struct RenHDrumDevice {
+    std::uint16_t vendor_id;
+    std::uint16_t product_id;
+    const char* official_name; // the vendor's own name for the pad
+    const char* features;      // what the engine plays through it
+    enum class Kind { Switch, DualSense } kind;
+};
+
+/// Every specifically matched pad, in table order; the Xbox/XInput path is the driver's
+/// catch-all for pads this list does not name.
+const std::vector<RenHDrumDevice>& RenHDrumDeviceList();
+
 } // namespace InputCommon
