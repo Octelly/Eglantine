@@ -59,6 +59,9 @@ ConfigureVibration::ConfigureVibration(QWidget* parent, Core::HID::HIDCore& hid_
             dialog.ApplyConfiguration();
         }
     });
+    ui->verticalLayout->addWidget(hd_rumble_button);
+    hd_rumble_button->setVisible(InputCommon::IsRenHDrumBuilt());
+
     auto* reset_warning_button = new QPushButton(tr("Reset RenHDrum warning"));
     reset_warning_button->setToolTip(tr(
         "The no-controller warning counts down 10 s the first time it is acknowledged and "
