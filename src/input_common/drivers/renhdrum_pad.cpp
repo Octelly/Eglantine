@@ -136,11 +136,11 @@ namespace InputCommon {
 // live in the file-local helper namespace below.
 const std::vector<RenHDrumDevice>& RenHDrumDeviceList() {
     static const std::vector<RenHDrumDevice> devices = {
-        {0x057E, 0x2009, "Nintendo Switch* Pro Controller",
+        {0x057E, 0x2009, "Nintendo Switch Pro Controller *",
          "HD Rumble (wired and Bluetooth)", RenHDrumDevice::Kind::Switch},
-        {0x057E, 0x2006, "Nintendo Switch* Joy-Con (L)", "HD Rumble (Bluetooth)",
+        {0x057E, 0x2006, "Nintendo Switch Joy-Con (L) *", "HD Rumble (Bluetooth)",
          RenHDrumDevice::Kind::Switch},
-        {0x057E, 0x2007, "Nintendo Switch* Joy-Con (R)", "HD Rumble (Bluetooth)",
+        {0x057E, 0x2007, "Nintendo Switch Joy-Con (R) *", "HD Rumble (Bluetooth)",
          RenHDrumDevice::Kind::Switch},
         {0x054C, 0x0CE6, "Sony DualSense",
          "Haptic voice coils, speaker and trigger kick (HD Haptics)",
